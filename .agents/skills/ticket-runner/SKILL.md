@@ -1,91 +1,81 @@
 ---
 name: ticket-runner
-description: Execute one repository ticket through validation, implementation, testing, and independent review. Use when the user references a ticket file or ticket ID.
+description: Execute one Ready repository ticket with read-only validation and exploration, exactly one implementation writer, independent review, and an evidence report. Stop before human verification, commit, or merge.
 ---
 
 # Ticket Runner
 
-Execute exactly one ticket.
+Accept one ticket path from the user prompt and execute only that ticket. Add
+this workflow to the active plan before starting.
 
-## Phase 1: Load context
+## Phase A — establish state
 
-Read:
+1. Read the root and applicable nested `AGENTS.md` files.
+2. Read the ticket completely.
+3. Read the authoritative product, architecture, ADR, status, index, and
+   verification documents relevant to the ticket.
+4. Capture `git status --short` and preserve unrelated changes.
+5. Refuse to proceed when:
+   - the ticket path is missing or outside the repository;
+   - the individual ticket status is not `Ready`;
+   - any dependency is not `Done`;
+   - unrelated changes cannot be safely preserved;
+   - repository guidance conflicts materially.
 
-1. Root and applicable nested `AGENTS.md` files
-2. The requested ticket
-3. `docs/PRODUCT.md`
-4. `docs/ARCHITECTURE.md`
-5. `docs/STATUS.md`
-6. `docs/VERIFICATION.md`
+## Phase B — parallel read-only gate
 
-Confirm the ticket is not already Done.
+1. Spawn `plan_validator` and `project_explorer` as read-only agents.
+2. Allow them to run concurrently and wait for both results.
+3. Do not start a writing agent while either read-only agent is running.
+4. Treat the run as blocked when either result is `BLOCKED`, including when the
+   other result is `GO`.
+5. On a blocker, return a consolidated blocker report and stop without edits.
 
-## Phase 2: Validate
+## Phase C — implementation
 
-Spawn these read-only agents in parallel:
+1. Spawn exactly one `ticket_worker`.
+2. Give it the ticket, both read-only results, and explicit allowed and protected
+   scope.
+3. Wait for the worker to finish.
+4. Do not spawn another implementation writer.
 
-- `plan_validator`
-- `project_explorer`
+## Phase D — automated verification
 
-Wait for both.
+1. Inspect the complete diff and confirm only intentional files changed.
+2. Run every mandatory ticket check and preserve complete command output.
+3. Spawn `verification_auditor` to map actual evidence to every acceptance
+   criterion.
+4. Leave browser and other human steps as `MANUAL_REQUIRED`; do not simulate or
+   claim them.
 
-If either identifies a blocker, stop before modifying files and return a
-consolidated blocker report.
+## Phase E — independent review
 
-Do not reinterpret or silently expand the ticket.
+1. Spawn a fresh `ticket_reviewer` with the ticket and current diff.
+2. Do not present the worker's self-assessment as review evidence.
+3. If the reviewer returns `BLOCKED`, evaluate each finding against the ticket
+   and send only accepted findings to the same `ticket_worker` for one focused
+   repair cycle.
+4. Rerun affected checks and the verification audit.
+5. Spawn one fresh `ticket_reviewer` after repairs.
+6. If significant blockers persist, stop with `REVIEW_BLOCKED` or `PARTIAL`.
+   Do not create an endless review loop.
 
-## Phase 3: Implement
-
-Delegate writing to one `ticket_worker`.
-
-Never spawn multiple writing agents for the same ticket.
-
-The worker must:
-
-- remain inside the allowed scope
-- avoid protected areas
-- satisfy each acceptance criterion
-- add or update appropriate tests
-- run all required verification
-- provide the required completion report
-
-## Phase 4: Inspect
-
-After implementation:
-
-1. Inspect the complete diff.
-2. Confirm that only intended files changed.
-3. Run applicable automated verification.
-4. Spawn `ticket_reviewer`.
-5. Wait for the reviewer.
-
-Do not have the implementation worker approve its own work.
-
-## Phase 5: Repair
-
-If the reviewer reports blockers or must-fix findings:
-
-1. Evaluate each finding against the ticket.
-2. Send accepted findings to the ticket worker.
-3. Make only the required corrections.
-4. Rerun affected checks.
-5. Review the resulting diff again.
-
-Limit review-repair cycles to two. If significant issues remain, report the
-ticket as partial or blocked rather than repeatedly expanding the change.
-
-## Phase 6: Report
+## Phase F — report and stop
 
 Return:
 
-- ticket result
-- implementation summary
-- acceptance-criteria evidence
-- files changed
-- commands and results
-- tests added or changed
-- review findings and dispositions
-- exact manual verification steps
-- risks and follow-ups
+- ticket ID, title, and path;
+- result status;
+- validator and explorer results;
+- worker summary;
+- changed files;
+- commands and check results;
+- an acceptance-criteria table with evidence;
+- reviewer result, findings, and dispositions;
+- unresolved risks;
+- exact human manual-verification steps still required;
+- the next human action;
+- an explicit statement that no commit or merge occurred.
 
-Do not mark the ticket Done. Human acceptance is required.
+Stop after the evidence report. Do not close documentation, mark the ticket
+`Done`, begin a dependent ticket, commit, push, or merge.

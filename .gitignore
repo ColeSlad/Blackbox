@@ -1,0 +1,5 @@
+.codex-runs/*
+!.codex-runs/.gitkeep
+.env
+.env.*
+!.env.example

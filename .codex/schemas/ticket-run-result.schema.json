@@ -1,0 +1,250 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "Blackbox ticket run result",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "ticket_id",
+    "ticket_path",
+    "status",
+    "summary",
+    "validator",
+    "explorer",
+    "worker",
+    "changed_files",
+    "commands",
+    "checks",
+    "acceptance_criteria",
+    "review",
+    "manual_verification_required",
+    "next_action"
+  ],
+  "properties": {
+    "ticket_id": {
+      "type": "string"
+    },
+    "ticket_path": {
+      "type": "string"
+    },
+    "status": {
+      "type": "string",
+      "enum": [
+        "BLOCKED_VALIDATION",
+        "BLOCKED_EXPLORATION",
+        "IMPLEMENTATION_FAILED",
+        "VERIFICATION_FAILED",
+        "REVIEW_BLOCKED",
+        "READY_FOR_MANUAL_VERIFICATION",
+        "PARTIAL"
+      ]
+    },
+    "summary": {
+      "type": "string"
+    },
+    "validator": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["result", "summary", "blockers"],
+      "properties": {
+        "result": {
+          "type": "string",
+          "enum": ["GO", "BLOCKED", "NOT_RUN"]
+        },
+        "summary": {
+          "type": "string"
+        },
+        "blockers": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        }
+      }
+    },
+    "explorer": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["result", "summary", "plan", "verification_map", "blockers"],
+      "properties": {
+        "result": {
+          "type": "string",
+          "enum": ["GO", "BLOCKED", "NOT_RUN"]
+        },
+        "summary": {
+          "type": "string"
+        },
+        "plan": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        },
+        "verification_map": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        },
+        "blockers": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        }
+      }
+    },
+    "worker": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["result", "summary"],
+      "properties": {
+        "result": {
+          "type": "string",
+          "enum": ["NOT_RUN", "COMPLETE", "PARTIAL", "FAILED"]
+        },
+        "summary": {
+          "type": "string"
+        }
+      }
+    },
+    "changed_files": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["path", "change", "reason"],
+        "properties": {
+          "path": {
+            "type": "string"
+          },
+          "change": {
+            "type": "string",
+            "enum": ["ADDED", "MODIFIED", "DELETED", "RENAMED"]
+          },
+          "reason": {
+            "type": "string"
+          }
+        }
+      }
+    },
+    "commands": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["command", "result", "exit_code", "evidence"],
+        "properties": {
+          "command": {
+            "type": "string"
+          },
+          "result": {
+            "type": "string",
+            "enum": ["PASS", "FAIL", "NOT_RUN", "BLOCKED"]
+          },
+          "exit_code": {
+            "type": ["integer", "null"]
+          },
+          "evidence": {
+            "type": "string"
+          }
+        }
+      }
+    },
+    "checks": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["name", "status", "evidence"],
+        "properties": {
+          "name": {
+            "type": "string"
+          },
+          "status": {
+            "type": "string",
+            "enum": ["PASS", "FAIL", "NOT_RUN", "MANUAL_REQUIRED", "BLOCKED"]
+          },
+          "evidence": {
+            "type": "string"
+          }
+        }
+      }
+    },
+    "acceptance_criteria": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["criterion", "status", "evidence"],
+        "properties": {
+          "criterion": {
+            "type": "string"
+          },
+          "status": {
+            "type": "string",
+            "enum": ["PASS", "FAIL", "NOT_RUN", "MANUAL_REQUIRED", "BLOCKED"]
+          },
+          "evidence": {
+            "type": "string"
+          }
+        }
+      }
+    },
+    "review": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["result", "summary", "findings"],
+      "properties": {
+        "result": {
+          "type": "string",
+          "enum": ["NOT_RUN", "PASS", "PASS_WITH_NONBLOCKING_FINDINGS", "BLOCKED"]
+        },
+        "summary": {
+          "type": "string"
+        },
+        "findings": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": [
+              "severity",
+              "title",
+              "path",
+              "line",
+              "explanation",
+              "recommended_action"
+            ],
+            "properties": {
+              "severity": {
+                "type": "string",
+                "enum": ["BLOCKER", "MUST_FIX", "SHOULD_FIX", "OPTIONAL"]
+              },
+              "title": {
+                "type": "string"
+              },
+              "path": {
+                "type": "string"
+              },
+              "line": {
+                "type": ["integer", "null"]
+              },
+              "explanation": {
+                "type": "string"
+              },
+              "recommended_action": {
+                "type": "string"
+              }
+            }
+          }
+        }
+      }
+    },
+    "manual_verification_required": {
+      "type": "boolean"
+    },
+    "next_action": {
+      "type": "string"
+    }
+  }
+}
