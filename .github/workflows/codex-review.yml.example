@@ -1,0 +1,82 @@
+name: Optional Codex read-only review
+
+on:
+  workflow_dispatch:
+    inputs:
+      ticket_path:
+        description: Repository-relative ticket path
+        required: true
+        type: string
+  pull_request:
+    types: [opened, synchronize, reopened]
+
+permissions:
+  contents: read
+  pull-requests: read
+
+jobs:
+  review:
+    if: >-
+      github.event_name == 'workflow_dispatch' ||
+      github.event.pull_request.head.repo.full_name == github.repository
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Check out the proposed merge commit
+        uses: actions/checkout@v5
+        with:
+          ref: ${{ github.event.pull_request.merge_commit_sha || github.sha }}
+          fetch-depth: 0
+          persist-credentials: false
+
+      - name: Resolve ticket and prepare prompt
+        id: context
+        env:
+          REQUESTED_TICKET: ${{ inputs.ticket_path }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          ticket_path="$REQUESTED_TICKET"
+          if [[ -z "$ticket_path" ]]; then
+            mapfile -t changed_tickets < <(
+              git diff --name-only \
+                "${{ github.event.pull_request.base.sha }}" \
+                "${{ github.event.pull_request.head.sha }}" -- \
+                'docs/tickets/*.md'
+            )
+            if [[ ${#changed_tickets[@]} -ne 1 ]]; then
+              echo "A PR review requires exactly one changed ticket file." >&2
+              exit 1
+            fi
+            ticket_path="${changed_tickets[0]}"
+          fi
+          if [[ ! -f "$ticket_path" || "$ticket_path" != docs/tickets/*.md ]]; then
+            echo "ticket_path must identify a file under docs/tickets/." >&2
+            exit 1
+          fi
+          mkdir -p .codex-runs/ci
+          cp .codex/prompts/independent-review.md .codex-runs/ci/review-prompt.md
+          printf '\nTicket path: `%s`\n' "$ticket_path" >> .codex-runs/ci/review-prompt.md
+          echo "ticket_path=$ticket_path" >> "$GITHUB_OUTPUT"
+
+      # Configure OPENAI_API_KEY as a repository or environment secret.
+      # The fork guard above prevents untrusted pull requests from reaching this step.
+      - name: Run Codex without write access
+        id: codex
+        uses: openai/codex-action@v1
+        with:
+          openai-api-key: ${{ secrets.OPENAI_API_KEY }}
+          prompt-file: .codex-runs/ci/review-prompt.md
+          output-file: .codex-runs/ci/review-result.txt
+          sandbox: read-only
+
+      - name: Upload review result
+        uses: actions/upload-artifact@v4
+        with:
+          name: codex-review-${{ github.run_id }}
+          path: .codex-runs/ci/review-result.txt
+          if-no-files-found: error
+
+# This example does not apply patches, commit, push, or merge. Copy it to
+# .github/workflows/codex-review.yml only after reviewing repository and fork
+# security requirements.
