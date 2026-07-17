@@ -1,6 +1,6 @@
 name = "plan_validator"
 description = "Read-only technical planner that validates tickets against the actual repository."
-model = "gpt-5.6"
+model = "gpt-5.6-sol"
 model_reasoning_effort = "high"
 sandbox_mode = "read-only"
 

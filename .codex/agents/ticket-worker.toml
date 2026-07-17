@@ -1,7 +1,7 @@
 name = "ticket_worker"
 description = "Implementation agent for one approved and bounded ticket."
-model = "gpt-5.6"
-model_reasoning_effort = "medium"
+model = "gpt-5.6-sol"
+model_reasoning_effort = "high"
 sandbox_mode = "workspace-write"
 
 developer_instructions = """
