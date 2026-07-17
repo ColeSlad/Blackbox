@@ -33,17 +33,26 @@ SCHEMA_FILE="$ROOT/.codex/schemas/ticket-run-result.schema.json"
 RESULT_FILE="$RUN_DIR/result.json"
 EVENT_FILE="$RUN_DIR/events.jsonl"
 STDERR_FILE="$RUN_DIR/codex.stderr.log"
+INVOCATION_FILE="$RUN_DIR/invocation.md"
+PROGRESS_FILE="$RUN_DIR/progress.log"
 
-set +e
 {
   cat "$PROMPT_FILE"
   printf '\nTicket path: `%s`\n' "$TICKET_PATH"
-} | codex -a never exec \
+} >"$INVOCATION_FILE"
+
+set +e
+python3 "$SCRIPT_DIR/run-codex-observed.py" \
+  --input "$INVOCATION_FILE" \
+  --events "$EVENT_FILE" \
+  --stderr "$STDERR_FILE" \
+  --progress "$PROGRESS_FILE" \
+  -- codex -a never exec \
   --sandbox workspace-write \
   --json \
   --output-schema "$SCHEMA_FILE" \
   --output-last-message "$RESULT_FILE" \
-  - >"$EVENT_FILE" 2>"$STDERR_FILE"
+  -
 codex_status=$?
 set -e
 

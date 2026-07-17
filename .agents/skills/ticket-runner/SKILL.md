@@ -24,19 +24,27 @@ this workflow to the active plan before starting.
 
 ## Phase B — parallel read-only gate
 
-1. Spawn `plan_validator` and `project_explorer` as read-only agents.
-2. Allow them to run concurrently and wait for both results.
-3. Do not start a writing agent while either read-only agent is running.
-4. Treat the run as blocked when either result is `BLOCKED`, including when the
+1. Spawn `plan_validator` and `project_explorer` as read-only agents. Inspect
+   both spawn results and record each nonempty receiver or agent ID.
+2. If either spawn fails or returns no nonempty receiver or agent ID, use the
+   applicable schema-supported blocked status, include blocker code
+   `AGENT_SPAWN_FAILED`, and stop without waiting or editing.
+3. Allow confirmed agents to run concurrently and wait for both results. Never
+   call `wait` unless at least one confirmed spawned agent remains active, and
+   never claim an agent is running unless its spawn result was confirmed.
+4. Do not start a writing agent while either read-only agent is running.
+5. Treat the run as blocked when either result is `BLOCKED`, including when the
    other result is `GO`.
-5. On a blocker, return a consolidated blocker report and stop without edits.
+6. On a blocker, return a consolidated blocker report and stop without edits.
 
 ## Phase C — implementation
 
-1. Spawn exactly one `ticket_worker`.
+1. Spawn exactly one `ticket_worker`. Confirm its spawn result contains a
+   nonempty receiver or agent ID; otherwise return `IMPLEMENTATION_FAILED` with
+   blocker code `AGENT_SPAWN_FAILED` and stop.
 2. Give it the ticket, both read-only results, and explicit allowed and protected
    scope.
-3. Wait for the worker to finish.
+3. Wait for the worker to finish only after its receiver ID is confirmed.
 4. Do not spawn another implementation writer.
 
 ## Phase D — automated verification

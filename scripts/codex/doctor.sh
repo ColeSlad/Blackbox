@@ -184,6 +184,7 @@ for script in \
   check_file "scripts/codex/$script.sh"
 done
 check_file "scripts/codex/validate-harness.py"
+check_file "scripts/codex/run-codex-observed.py"
 
 if git check-ignore -q .codex-runs/doctor-evidence.tmp \
   && ! git check-ignore -q .codex-runs/.gitkeep; then

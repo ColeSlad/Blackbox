@@ -2,7 +2,9 @@
 
 import json
 import re
+import subprocess
 import sys
+import tempfile
 import tomllib
 from pathlib import Path
 
@@ -66,6 +68,12 @@ ticket_runner_skill = read(".agents/skills/ticket-runner/SKILL.md")
 validation_gate = ticket_runner_skill.find("Do not start a writing agent while either read-only agent is running")
 implementation_writer = ticket_runner_skill.find("Spawn exactly one `ticket_worker`")
 check(-1 < validation_gate < implementation_writer, "ticket read-only gates precede its implementation writer")
+check("AGENT_SPAWN_FAILED" in ticket_runner_skill, "ticket runner fails closed when a required spawn fails")
+check("Never\n   call `wait` unless at least one confirmed spawned agent remains active" in ticket_runner_skill, "ticket runner waits only for confirmed active agents")
+
+automated_ticket_prompt = read(".codex/prompts/automated-ticket-run.md")
+check("Never issue a collaboration wait unless a previously" in automated_ticket_prompt, "automated ticket prompt waits only for confirmed agents")
+check("AGENT_SPAWN_FAILED" in automated_ticket_prompt, "automated ticket prompt requires successful agent spawning")
 
 project_plan = read(".agents/skills/project-plan/SKILL.md")
 check("sole planning writer" in project_plan, "project planning declares one invoking-session writer")
@@ -130,6 +138,105 @@ check("proposal sha-256:" in improvement_script.lower() and "hashlib.sha256" in 
 
 run_ticket = read("scripts/codex/run-ticket.sh")
 check(run_ticket.find('STATUS=$(ticket_status') < run_ticket.find("codex -a never exec"), "ticket status validation precedes implementation")
+check("run-codex-observed.py" in run_ticket, "ticket execution uses the live event observer")
+
+observer_path = ROOT / "scripts" / "codex" / "run-codex-observed.py"
+with tempfile.TemporaryDirectory() as temporary_directory:
+    temporary_path = Path(temporary_directory)
+    input_path = temporary_path / "input.md"
+    input_path.write_text("fixture\n", encoding="utf-8")
+
+    fixture_events = [
+        {"type": "thread.started", "thread_id": "fixture-thread"},
+        {
+            "type": "item.started",
+            "item": {
+                "id": "fixture-wait",
+                "type": "collab_tool_call",
+                "tool": "wait",
+                "receiver_thread_ids": [],
+                "status": "in_progress",
+            },
+        },
+        {
+            "type": "item.completed",
+            "item": {
+                "id": "fixture-message",
+                "type": "agent_message",
+                "text": json.dumps(
+                    {
+                        "status": "PARTIAL",
+                        "summary": "Read-only agents are still running.",
+                        "next_action": "Continue waiting.",
+                    }
+                ),
+            },
+        },
+        {"type": "turn.completed", "usage": {}},
+    ]
+    fixture_producer = (
+        "import json; "
+        f"events={fixture_events!r}; "
+        "[print(json.dumps(event), flush=True) for event in events]"
+    )
+    observed_events = temporary_path / "observed-events.jsonl"
+    observed_stderr = temporary_path / "observed-stderr.log"
+    observed_progress = temporary_path / "observed-progress.log"
+    observed_result = subprocess.run(
+        [
+            sys.executable,
+            str(observer_path),
+            "--input",
+            str(input_path),
+            "--events",
+            str(observed_events),
+            "--stderr",
+            str(observed_stderr),
+            "--progress",
+            str(observed_progress),
+            "--",
+            sys.executable,
+            "-c",
+            fixture_producer,
+        ],
+        check=False,
+        timeout=5,
+        capture_output=True,
+        text=True,
+    )
+    progress_text = observed_progress.read_text(encoding="utf-8")
+    check(observed_result.returncode == 0, "live event observer preserves a successful command exit")
+    check(len(observed_events.read_text(encoding="utf-8").splitlines()) == len(fixture_events), "live event observer preserves complete JSONL evidence")
+    check("Waiting for configured agent responses" in progress_text, "live event observer reports read-only gate waits")
+    check("[PARTIAL] Read-only agents are still running" in progress_text, "live event observer renders structured phase updates")
+
+    failed_events = temporary_path / "failed-events.jsonl"
+    failed_stderr = temporary_path / "failed-stderr.log"
+    failed_progress = temporary_path / "failed-progress.log"
+    failed_result = subprocess.run(
+        [
+            sys.executable,
+            str(observer_path),
+            "--input",
+            str(input_path),
+            "--events",
+            str(failed_events),
+            "--stderr",
+            str(failed_stderr),
+            "--progress",
+            str(failed_progress),
+            "--",
+            sys.executable,
+            "-c",
+            "raise SystemExit(7)",
+        ],
+        check=False,
+        timeout=5,
+        capture_output=True,
+        text=True,
+    )
+    check(failed_result.returncode == 7, "live event observer preserves a failed command exit")
+    check("Codex exited with status 7" in failed_progress.read_text(encoding="utf-8"), "live event observer records terminal failure progress")
 
 with (ROOT / ".codex" / "schemas" / "retrospective-result.schema.json").open(encoding="utf-8") as handle:
     retrospective_schema = json.load(handle)

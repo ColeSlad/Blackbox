@@ -145,6 +145,19 @@ The script:
 It automates validation, exploration, one worker, verification auditing, and
 review. It does not perform human verification or documentation closure.
 
+`run-ticket.sh` sends the Codex JSONL stream through
+`scripts/codex/run-codex-observed.py`. The observer preserves complete events
+while printing concise phase messages, commands, read-only gate waits, and
+terminal status to the invoking terminal and `progress.log`. This makes a long
+read-only phase visibly active without starting a writer early.
+
+Codex CLI `0.144.5` does not expose custom-agent spawn events in the parent
+`--json` stream, and successful collaboration waits can contain an empty
+`receiver_thread_ids` array. The wrapper therefore cannot infer spawn failure
+from that field. The skill requires explicit spawn-result confirmation and
+fails closed when spawning itself reports failure; retained progress and event
+logs remain the factual runtime evidence.
+
 ## Independent review
 
 ```bash
