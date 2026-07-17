@@ -12,6 +12,23 @@ The system is divided into a control plane, an execution plane, and an analysis 
 
 The initial deployment is a single local application composed of a server process, worker processes, a PostgreSQL database, repository worktrees, and a web client. Logical component boundaries must remain explicit even if multiple components are initially packaged together.
 
+## Approved implementation platform
+
+The initial MVP uses Node.js 24 LTS, strict TypeScript with ECMAScript modules,
+and a pnpm monorepo. Fastify is restricted to the HTTP adapter, while React and
+Vite are restricted to the browser package. Server, worker, CLI, domain,
+contract, shared-configuration, and fixture boundaries remain separate workspace
+packages. Root pnpm scripts coordinate the workspace without an additional task
+orchestration framework.
+
+Codex integration uses a dedicated execution-plane subprocess adapter around the
+installed CLI. The adapter prefers `codex exec --json`, records raw process and
+event evidence, performs runtime capability detection, and normalizes supported
+events without leaking Codex-specific types into the domain layer.
+
+See accepted [ADR 0001](decisions/0001-typescript-pnpm-monorepo.md) and
+[ADR 0002](decisions/0002-codex-cli-subprocess-boundary.md).
+
 ## Components
 
 ### Command-line interface
@@ -912,12 +929,9 @@ Required for:
 
 ## Open technical decisions
 
-- Primary implementation language and web framework.
-- Whether the CLI and server share a TypeScript monorepo or use separate language stacks.
 - PostgreSQL job queue versus an external local queue.
 - Filesystem event capture strategy across macOS and Linux.
 - Exact mechanism for observing file reads without unacceptable overhead.
-- Codex CLI integration mode: subprocess wrapper, JSONL protocol, or external orchestrator adapter.
 - Initial symbol-indexing implementation and supported languages.
 - Integration strategy: sequential patch application, merge queue, or synthetic merge commit.
 - How much agent reasoning metadata to capture when model-message storage is disabled.
