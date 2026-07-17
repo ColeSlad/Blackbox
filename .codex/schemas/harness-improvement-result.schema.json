@@ -1,0 +1,79 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "Blackbox harness improvement result",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "proposal_id",
+    "status",
+    "summary",
+    "writer_count",
+    "changed_files",
+    "commands",
+    "checks",
+    "review",
+    "product_scope_changed",
+    "commit_created",
+    "next_action"
+  ],
+  "properties": {
+    "proposal_id": {"type": "string", "pattern": "^HR-[A-Za-z0-9._-]+$"},
+    "status": {
+      "type": "string",
+      "enum": ["BLOCKED", "VALIDATION_FAILED", "REVIEW_BLOCKED", "READY_FOR_HUMAN_REVIEW", "PARTIAL"]
+    },
+    "summary": {"type": "string", "minLength": 1},
+    "writer_count": {"type": "integer", "minimum": 0, "maximum": 1},
+    "changed_files": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["path", "reason"],
+        "properties": {
+          "path": {"type": "string"},
+          "reason": {"type": "string"}
+        }
+      }
+    },
+    "commands": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["command", "exit_code", "result"],
+        "properties": {
+          "command": {"type": "string"},
+          "exit_code": {"type": ["integer", "null"]},
+          "result": {"type": "string", "enum": ["PASS", "FAIL", "NOT_RUN", "BLOCKED"]}
+        }
+      }
+    },
+    "checks": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["name", "result", "evidence"],
+        "properties": {
+          "name": {"type": "string"},
+          "result": {"type": "string", "enum": ["PASS", "FAIL", "NOT_RUN", "BLOCKED"]},
+          "evidence": {"type": "string"}
+        }
+      }
+    },
+    "review": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["result", "summary", "findings"],
+      "properties": {
+        "result": {"type": "string", "enum": ["NOT_RUN", "PASS", "PASS_WITH_NONBLOCKING_FINDINGS", "BLOCKED"]},
+        "summary": {"type": "string"},
+        "findings": {"type": "array", "items": {"type": "string"}}
+      }
+    },
+    "product_scope_changed": {"type": "boolean", "const": false},
+    "commit_created": {"type": "boolean", "const": false},
+    "next_action": {"type": "string", "minLength": 1}
+  }
+}

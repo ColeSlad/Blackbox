@@ -45,6 +45,32 @@ print(resolved)
 PY
 }
 
+resolve_repo_directory() {
+  local root=$1
+  local candidate=$2
+
+  require_command python3
+  python3 - "$root" "$candidate" <<'PY'
+import os
+import sys
+
+root = os.path.realpath(sys.argv[1])
+candidate = sys.argv[2]
+if not os.path.isabs(candidate):
+    candidate = os.path.join(root, candidate)
+resolved = os.path.realpath(candidate)
+try:
+    inside = os.path.commonpath([root, resolved]) == root
+except ValueError:
+    inside = False
+if not inside:
+    raise SystemExit("path is outside the repository")
+if not os.path.isdir(resolved):
+    raise SystemExit("directory does not exist")
+print(resolved)
+PY
+}
+
 repo_relative_path() {
   local root=$1
   local path=$2
@@ -66,6 +92,105 @@ ticket_id_from_path() {
 
 ticket_status() {
   sed -n 's/^Status:[[:space:]]*//p' "$1" | head -n 1
+}
+
+find_ticket_by_id() {
+  local root=$1
+  local ticket_id=$2
+
+  require_command python3
+  python3 - "$root" "$ticket_id" <<'PY'
+import glob
+import os
+import sys
+
+root, ticket_id = sys.argv[1:]
+matches = []
+for directory in ("tickets", "completed-tickets"):
+    matches.extend(glob.glob(os.path.join(root, "docs", directory, f"{ticket_id}-*.md")))
+if len(matches) != 1:
+    raise SystemExit(f"expected exactly one ticket file for {ticket_id}; found {len(matches)}")
+print(matches[0])
+PY
+}
+
+select_next_ready_ticket() {
+  local root=$1
+
+  require_command python3
+  python3 - "$root" <<'PY'
+import glob
+import os
+import re
+import sys
+
+root = os.path.realpath(sys.argv[1])
+index_path = os.path.join(root, "docs", "TICKETS.md")
+row_pattern = re.compile(
+    r"^\|\s*(T\d+)\s*\|\s*([^|]+?)\s*\|\s*([^|]+?)\s*\|\s*([^|]+?)\s*\|$"
+)
+tickets = []
+with open(index_path, encoding="utf-8") as handle:
+    for raw_line in handle:
+        match = row_pattern.match(raw_line.rstrip())
+        if match:
+            tickets.append(tuple(part.strip() for part in match.groups()))
+
+def individual_ticket(ticket_id):
+    matches = []
+    for directory in ("tickets", "completed-tickets"):
+        matches.extend(glob.glob(os.path.join(root, "docs", directory, f"{ticket_id}-*.md")))
+    if len(matches) != 1:
+        return None, None, None
+    with open(matches[0], encoding="utf-8") as handle:
+        content = handle.read()
+    match = re.search(r"^Status:\s*(.+?)\s*$", content, re.MULTILINE)
+    dependency_section = re.search(
+        r"^## Dependencies\s*$\n(?P<body>.*?)(?=^## |\Z)",
+        content,
+        re.MULTILINE | re.DOTALL,
+    )
+    if dependency_section is None:
+        return (match.group(1) if match else None), matches[0], None
+    dependency_body = dependency_section.group("body").strip()
+    dependencies = re.findall(r"\bT[0-9]{4}\b", dependency_body)
+    if not dependencies and dependency_body.rstrip(".").strip().casefold() != "none":
+        return (match.group(1) if match else None), matches[0], None
+    if len(dependencies) != len(set(dependencies)):
+        return (match.group(1) if match else None), matches[0], None
+    return (match.group(1) if match else None), matches[0], dependencies
+
+for ticket_id, _title, index_status, index_dependencies_text in tickets:
+    status, ticket_path, dependencies = individual_ticket(ticket_id)
+    if status != "Ready" or ticket_path is None:
+        continue
+    if dependencies is None:
+        print(f"error: {ticket_id} has a missing or invalid authoritative Dependencies section", file=sys.stderr)
+        raise SystemExit(2)
+    index_dependencies = [] if index_dependencies_text == "None" else [
+        item.strip() for item in index_dependencies_text.split(",") if item.strip()
+    ]
+    if dependencies != index_dependencies:
+        print(
+            f"error: {ticket_id} dependency mismatch: ticket={dependencies or ['None']} "
+            f"index={index_dependencies or ['None']}",
+            file=sys.stderr,
+        )
+        raise SystemExit(2)
+    dependency_statuses = [individual_ticket(dependency)[0] for dependency in dependencies]
+    if any(dependency_status != "Done" for dependency_status in dependency_statuses):
+        continue
+    if index_status != status:
+        print(
+            f"warning: {ticket_id} index status is {index_status}; "
+            f"authoritative ticket status is {status}",
+            file=sys.stderr,
+        )
+    print(os.path.relpath(ticket_path, root))
+    raise SystemExit(0)
+
+raise SystemExit(1)
+PY
 }
 
 utc_timestamp() {

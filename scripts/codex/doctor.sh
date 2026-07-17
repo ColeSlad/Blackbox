@@ -45,7 +45,8 @@ for document in \
   docs/STATUS.md \
   docs/TICKETS.md \
   docs/VERIFICATION.md \
-  docs/CODEX_WORKFLOW.md; do
+  docs/CODEX_WORKFLOW.md \
+  docs/tickets/templates/harness-improvement.md; do
   check_file "$document"
 done
 
@@ -91,11 +92,20 @@ for agent in \
   ticket-worker \
   ticket-reviewer \
   verification-auditor \
-  ticket-closer; do
+  ticket-closer \
+  project-planner \
+  harness-retrospective \
+  harness-improver; do
   check_file ".codex/agents/$agent.toml"
 done
 
-for agent in plan-validator project-explorer ticket-reviewer verification-auditor; do
+for agent in \
+  plan-validator \
+  project-explorer \
+  ticket-reviewer \
+  verification-auditor \
+  project-planner \
+  harness-retrospective; do
   file=".codex/agents/$agent.toml"
   if [[ -f "$file" ]] && grep -Eq '^sandbox_mode = "read-only"$' "$file"; then
     pass_check "$agent is read-only"
@@ -117,27 +127,63 @@ else
   fail_check "ticket-closer must be documentation-only"
 fi
 
+if grep -Eq '^sandbox_mode = "workspace-write"$' .codex/agents/harness-improver.toml \
+  && grep -Fq 'only writer' .codex/agents/harness-improver.toml; then
+  pass_check "harness-improver is the sole approved harness writer"
+else
+  fail_check "harness-improver must be the sole approved harness writer"
+fi
+
 if grep -REn '^(model|model_provider|openai_api_key|api_key)[[:space:]]*=' .codex/config.toml .codex/agents >/dev/null 2>&1; then
   fail_check "project Codex configuration contains a model, provider, or credential override"
 else
   pass_check "project Codex configuration inherits user model and credentials"
 fi
 
-for skill in ticket-runner ticket-review ticket-close; do
+for skill in \
+  ticket-runner \
+  ticket-review \
+  ticket-close \
+  project-plan \
+  harness-retrospective \
+  harness-improve; do
   check_file ".agents/skills/$skill/SKILL.md"
 done
 
-for prompt in automated-ticket-run independent-review ticket-closure; do
+for prompt in \
+  automated-ticket-run \
+  independent-review \
+  ticket-closure \
+  project-planning \
+  harness-retrospective \
+  harness-improvement; do
   check_file ".codex/prompts/$prompt.md"
 done
 
-for schema in ticket-run-result review-result closure-result; do
+for schema in \
+  ticket-run-result \
+  review-result \
+  closure-result \
+  project-plan-result \
+  retrospective-result \
+  harness-improvement-result; do
   check_file ".codex/schemas/$schema.schema.json"
 done
 
-for script in common doctor run-ticket review-ticket close-ticket run-next-ready; do
+for script in \
+  common \
+  doctor \
+  run-ticket \
+  review-ticket \
+  close-ticket \
+  run-next-ready \
+  plan-next \
+  retrospective \
+  apply-harness-improvement \
+  autopilot; do
   check_file "scripts/codex/$script.sh"
 done
+check_file "scripts/codex/validate-harness.py"
 
 if git check-ignore -q .codex-runs/doctor-evidence.tmp \
   && ! git check-ignore -q .codex-runs/.gitkeep; then
@@ -179,6 +225,12 @@ then
   pass_check "all JSON schemas parse"
 else
   fail_check "a JSON schema is invalid"
+fi
+
+if python3 scripts/codex/validate-harness.py; then
+  pass_check "deterministic harness policy validation passes"
+else
+  fail_check "deterministic harness policy validation failed"
 fi
 
 warn_check "project-scoped agents and skills load only when Codex trusts this repository; restart Codex after harness changes"

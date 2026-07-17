@@ -37,6 +37,51 @@ a convenient interpretation.
 - Never mark a ticket `Done`, commit, push, or merge unless a human explicitly
   requests that separate action.
 
+## Project planning
+
+- Use `$project-plan` for product-ticket creation. The `project_planner` remains
+  read-only; the invoking planning session is the sole writer when Draft files
+  are materialized.
+- Propose exactly three dependency-ordered tickets with complete scope,
+  acceptance, automated checks, manual verification, exclusions, and reviewer
+  focus.
+- Create every proposal as `Draft`. Run a separate read-only `plan_validator`
+  pass, then require explicit human review before changing any ticket to
+  `Ready`.
+- Planning never starts `ticket_worker` or modifies application code.
+
+## One-ticket autopilot
+
+- `scripts/codex/autopilot.sh` selects at most one `Ready` ticket whose
+  dependencies are `Done`.
+- Write-capable autopilot must start from a clean `main` branch and create a
+  dedicated branch and worktree.
+- Autopilot invokes the existing ticket runner exactly once and stops before
+  manual verification, documentation closure, staging, commit, push, merge, or
+  worktree cleanup.
+- Do not enable recurring or recursive autopilot scheduling.
+
+## Harness refinement
+
+- Use `$harness-retrospective` read-only to analyze named run evidence and an
+  optional manual record. It may emit at most one pending proposal and may not
+  change product scope.
+- Distinguish one-off implementation defects from repeated or systemic harness
+  failures. Prefer durable improvements in this order: regression test,
+  deterministic check, ticket clarification, architecture clarification, skill
+  update, then `AGENTS.md` update.
+- A human must approve the exact proposal in a separate record before
+  `$harness-improve` may run.
+- `harness_improver` is the only writer in an improvement run. Its default scope
+  is tests, scripts, `AGENTS.md`, `.codex/`, `.agents/`, ticket templates, and
+  workflow documentation.
+- Harness improvements never weaken approval, sandbox, testing, review,
+  evidence, or human-verification gates, rewrite product requirements to pass,
+  implement a product ticket, commit, push, or merge.
+- Run deterministic policy validation and a fresh independent read-only review
+  for every improvement. Reuse the same improver for at most one focused repair;
+  never start a second writer.
+
 ## Change discipline
 
 - Stay within the selected ticket's allowed scope and protected-area rules.
@@ -61,10 +106,17 @@ a convenient interpretation.
 - `ticket_reviewer`: fresh, independent, read-only review of the completed diff.
 - `ticket_closer`: the only writer in a later documentation-only closure run,
   after explicit human verification evidence.
+- `project_planner`: read-only product-increment and Draft-ticket proposer.
+- `harness_retrospective`: read-only run-evidence and systemic-failure analyst.
+- `harness_improver`: the only writer for one separately approved harness
+  proposal.
 
 Never run `ticket_worker` and `ticket_closer` concurrently. Never use a second
 implementation writer for repairs; return accepted findings to the same worker
 for at most one focused repair cycle.
+
+Never run any two writer roles concurrently. A planning session, ticket run,
+closure, or harness-improvement run owns exactly one writer boundary.
 
 ## Durable learning
 

@@ -1,0 +1,80 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "Blackbox harness retrospective result",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "ticket_id",
+    "evidence_directory",
+    "result",
+    "classification",
+    "summary",
+    "repeated_or_systemic_failures",
+    "one_off_implementation_defects",
+    "recommendation"
+  ],
+  "properties": {
+    "ticket_id": {"type": "string", "pattern": "^T[0-9]{4}$"},
+    "evidence_directory": {"type": "string", "pattern": "^\\.codex-runs/"},
+    "result": {"type": "string", "enum": ["NO_IMPROVEMENT", "PROPOSAL", "INSUFFICIENT_EVIDENCE"]},
+    "classification": {
+      "type": "string",
+      "enum": ["ONE_OFF_IMPLEMENTATION_DEFECT", "HARNESS_DEFECT", "MIXED", "NO_FAILURE", "INSUFFICIENT_EVIDENCE"]
+    },
+    "summary": {"type": "string", "minLength": 1},
+    "repeated_or_systemic_failures": {"type": "array", "items": {"type": "string"}},
+    "one_off_implementation_defects": {"type": "array", "items": {"type": "string"}},
+    "recommendation": {
+      "type": ["object", "null"],
+      "additionalProperties": false,
+      "required": [
+        "proposal_id",
+        "title",
+        "category",
+        "problem",
+        "evidence",
+        "durable_change",
+        "allowed_paths",
+        "validation_checks",
+        "risks",
+        "product_scope_change",
+        "approval_status"
+      ],
+      "properties": {
+        "proposal_id": {"type": "string", "pattern": "^HR-[A-Za-z0-9._-]+$"},
+        "title": {"type": "string", "minLength": 1},
+        "category": {
+          "type": "string",
+          "enum": [
+            "REGRESSION_TEST",
+            "DETERMINISTIC_CHECK",
+            "TICKET_CLARIFICATION",
+            "ARCHITECTURE_CLARIFICATION",
+            "SKILL_UPDATE",
+            "AGENTS_UPDATE"
+          ]
+        },
+        "problem": {"type": "string", "minLength": 1},
+        "evidence": {
+          "type": "array",
+          "minItems": 1,
+          "items": {"type": "string", "minLength": 1}
+        },
+        "durable_change": {"type": "string", "minLength": 1},
+        "allowed_paths": {
+          "type": "array",
+          "minItems": 1,
+          "items": {"type": "string", "minLength": 1}
+        },
+        "validation_checks": {
+          "type": "array",
+          "minItems": 1,
+          "items": {"type": "string", "minLength": 1}
+        },
+        "risks": {"type": "array", "items": {"type": "string"}},
+        "product_scope_change": {"type": "boolean", "const": false},
+        "approval_status": {"type": "string", "const": "PENDING"}
+      }
+    }
+  }
+}
