@@ -1,0 +1,54 @@
+{
+  "schema_version": 1,
+  "id": "intent-1",
+  "assignment_id": "assignment-1",
+  "version": 1,
+  "goal": "Define domain contracts.",
+  "reads": [
+    {
+      "schema_version": 1,
+      "kind": "path",
+      "locator": "docs/ARCHITECTURE.md"
+    }
+  ],
+  "writes": [
+    {
+      "schema_version": 1,
+      "kind": "path",
+      "locator": "packages/contracts/src/index.ts"
+    }
+  ],
+  "assumptions": [
+    {
+      "id": "assumption-1",
+      "statement": "The architecture contract is current.",
+      "resource": null,
+      "expected_version": null,
+      "severity_if_invalid": "block"
+    }
+  ],
+  "public_contract_changes": [
+    {
+      "resource": {
+        "schema_version": 1,
+        "kind": "api_contract",
+        "locator": "contracts-v1"
+      },
+      "description": "Adds version-one wire contracts."
+    }
+  ],
+  "required_validations": ["contracts-unit"],
+  "declared_effects": [
+    {
+      "description": "Adds contract schemas.",
+      "resources": [
+        {
+          "schema_version": 1,
+          "kind": "path",
+          "locator": "packages/contracts"
+        }
+      ]
+    }
+  ],
+  "created_at": "2026-07-18T12:03:00Z"
+}

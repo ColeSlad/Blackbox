@@ -1,6 +1,6 @@
 # T0003 — Core Domain Contracts
 
-Status: Draft
+Status: Done
 Milestone: M0 — Foundation
 
 ## Outcome
@@ -628,3 +628,62 @@ The schema mechanism, lifecycle vocabularies, legal transitions, and ownership
 boundaries are resolved. Normal dependency fact-checking, `plan_validator`, and
 explicit human promotion remain mandatory gates rather than unresolved design
 decisions.
+
+## Completion Evidence
+
+Completed: 2026-07-18
+
+Accepted implementation:
+
+- Added dependency-free domain errors, status vocabularies, immutable lifecycle
+  transition tables, and pure transition functions for runs, tickets,
+  assignments, and transactions.
+- Added eleven strict version-one TypeBox schema families, safe parsers, stable
+  schema errors, and inspectable valid and invalid fixtures.
+- Kept TypeBox confined to `packages/contracts` at exactly version `1.3.6` and
+  preserved the framework- and infrastructure-independent `packages/domain`
+  boundary.
+- Added exhaustive lifecycle, schema, parser, fixture, error-safety, and package
+  boundary tests without adding persistence, orchestration, or later-ticket
+  product behavior.
+
+Automated evidence:
+
+- Verification environment: Node.js `v24.18.0` and pnpm `10.31.0`.
+- Frozen offline installation from the workspace lockfile: pass.
+- Domain tests: pass with 252 tests covering every state pair, unknown states,
+  immutable transition tables, and safe errors.
+- Contract tests: pass with 82 tests covering all eleven schema families,
+  fixtures, version precedence, strictness, required and nullable fields,
+  enums, uniqueness, recursive JSON, conditional invariants, and package
+  boundaries.
+- Domain and contract type checks and production builds: pass.
+- `pnpm verify`: pass with 347 unit tests plus built-boundary integration smoke
+  coverage.
+- Formatting, linting, repository type checking, compatibility tests,
+  production builds, prohibited-import checks, scope checks, and
+  `git diff --check`: pass.
+- Dependency audit: zero known vulnerabilities across 297 dependencies.
+- Final verification audit: `GO`.
+- Fresh independent ticket review: `GO` with no unresolved blocker.
+- Structured acceptance and review evidence is retained under
+  `.codex-runs/T0003/20260718T213423Z/` and
+  `.codex-runs/reviews/T0003/20260718T213424Z/`.
+
+Manual evidence:
+
+- `.codex-runs/manual/T0003.md` records exactly one unambiguous
+  `Manual verification: Pass` result.
+- The human verifier accepted inspection of all eleven serialized examples, a
+  valid version-one transaction parse, unsupported-version and forbidden-edge
+  error behavior, a legal lifecycle transition, and the framework-free domain
+  API boundary.
+
+Current limitations:
+
+- These contracts define wire syntax and structurally legal lifecycle edges;
+  they do not orchestrate runs, resolve resources, persist records, emit ledger
+  events, execute validations, detect conflicts, analyze causality, replay
+  executions, or evaluate guardrails.
+- No automatic schema migration or compatibility adapter exists, and serialized
+  contract keys remain explicitly versioned `snake_case` values.

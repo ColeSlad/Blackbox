@@ -1,0 +1,12 @@
+{
+  "schema_version": 1,
+  "id": "ticket-1",
+  "run_id": "run-1",
+  "external_key": "T0003",
+  "title": "Core domain contracts",
+  "description": "Invalid status fixture.",
+  "status": "unknown",
+  "dependencies": [],
+  "acceptance_criteria": [],
+  "manual_verification_steps": []
+}

@@ -1,0 +1,21 @@
+{
+  "schema_version": 1,
+  "id": "conflict-1",
+  "detector_id": "detector-1",
+  "detector_version": 1,
+  "classification": "overlapping-write",
+  "severity": "approval_required",
+  "decision": "approval_required",
+  "involved_transactions": ["transaction-1", "transaction-2"],
+  "involved_resources": [
+    {
+      "schema_version": 1,
+      "kind": "path",
+      "locator": "packages/domain/src/index.ts"
+    }
+  ],
+  "evidence_event_ids": ["event-1"],
+  "explanation": "Two transactions declare the same write.",
+  "confidence": 1,
+  "resolution_status": "open"
+}

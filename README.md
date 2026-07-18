@@ -43,6 +43,12 @@ built-boundary integration tests in that order, stopping at the first failure.
 The same command runs in GitHub Actions for pull requests, pushes to `main`, and
 manual workflow dispatches.
 
+The framework-independent product boundary is split between
+`@blackbox/domain`, which owns stable errors and pure lifecycle rules, and
+`@blackbox/contracts`, which owns strict version-one TypeBox wire schemas and
+unknown-value parsers. Inspectable JSON examples for all eleven schema families
+live under `fixtures/contracts/`.
+
 The individual commands remain available:
 
 ```sh
@@ -52,6 +58,8 @@ pnpm typecheck
 pnpm test:unit
 pnpm build
 pnpm test:integration
+pnpm --filter @blackbox/domain test
+pnpm --filter @blackbox/contracts test
 ```
 
 `pnpm test` remains a compatibility alias for `pnpm test:unit`. Run

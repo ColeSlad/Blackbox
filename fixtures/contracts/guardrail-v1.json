@@ -1,0 +1,33 @@
+{
+  "schema_version": 1,
+  "id": "guardrail-1",
+  "version": 1,
+  "name": "Require validation evidence",
+  "scope": {
+    "resource_kind": "validation_definition"
+  },
+  "trigger": "transaction.eligible",
+  "predicate": {
+    "all": [
+      {
+        "equals": {
+          "left": "validation.status",
+          "right": "pass"
+        }
+      }
+    ]
+  },
+  "decision": "block",
+  "evidence_requirement": {
+    "event_types": ["validation.completed"],
+    "minimum_count": 1
+  },
+  "status": "candidate",
+  "created_from_failure_report_id": null,
+  "evaluation_summary": {
+    "evaluated_failure_scenarios": 1,
+    "prevented_failure_scenarios": 1,
+    "evaluated_success_scenarios": 1,
+    "false_positive_blocks": 0
+  }
+}

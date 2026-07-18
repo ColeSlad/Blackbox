@@ -1,0 +1,12 @@
+{
+  "schema_version": 1,
+  "id": "ticket-1",
+  "run_id": "run-1",
+  "external_key": "T0003",
+  "title": "Core domain contracts",
+  "description": "Define versioned domain boundaries.",
+  "status": "running",
+  "dependencies": ["ticket-0"],
+  "acceptance_criteria": ["Schemas reject invalid input."],
+  "manual_verification_steps": ["Inspect one fixture."]
+}

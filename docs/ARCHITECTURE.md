@@ -378,19 +378,23 @@ Key fields:
 - `declared_effects`
 - `created_at`
 
-### Resource reference
+### Resource selector
 
 A canonical selector used in intents and conflicts.
 
-Initial resource kinds:
+Version-one wire resource kinds:
 
-- Repository
-- Commit
-- Path
-- Symbol
-- Database migration identifier
-- API contract
-- Validation definition
+- `repository`
+- `commit`
+- `path`
+- `symbol`
+- `migration_identifier`
+- `api_contract`
+- `validation_definition`
+
+The version-one identity of a resource selector is the exact `(kind, locator)`
+pair. Resolution, normalization, glob expansion, and repository inspection are
+application-service responsibilities rather than domain or contract behavior.
 
 ### Transaction
 
@@ -553,6 +557,57 @@ Key fields:
 - `created_from_failure_report_id`
 - `evaluation_summary`
 
+## Version-one contracts
+
+`packages/domain` owns dependency-free identifiers, status vocabularies, stable
+errors, immutable legal-transition tables, and pure transition functions.
+`packages/contracts` is the only package that imports TypeBox and owns runtime
+schemas, inferred serialized types, and parsers from `unknown`.
+
+The independently parseable version-one families are run, ticket, agent
+assignment, intent contract, resource selector, transaction, ledger-event
+envelope, validation result, conflict, causal finding, and guardrail. Their wire
+keys and inferred serialized TypeScript keys are `snake_case`. Every top-level
+record requires `schema_version: 1`; nested records inherit that version unless
+they are independently parseable. Objects are strict and reject additional
+properties except for the arbitrary JSON object in a ledger payload. Nullable
+properties remain required and carry explicit `null`, never `undefined`.
+
+Parsers reject a missing or malformed version as `INVALID_SCHEMA`, reject a
+recognized non-v1 version as `UNSUPPORTED_SCHEMA_VERSION` before field
+validation, and expose only safe issue paths rather than rejected values.
+Unknown enum values and other structural failures are `INVALID_SCHEMA`.
+
+### Pure lifecycle edges
+
+| Record      | Current state                                    | Legal target states                             |
+| ----------- | ------------------------------------------------ | ----------------------------------------------- |
+| Run         | `created`                                        | `running`, `cancelled`                          |
+| Run         | `running`                                        | `completed`, `failed`, `cancelled`              |
+| Run         | `completed`, `failed`, `cancelled`               | None                                            |
+| Ticket      | `pending`                                        | `ready`, `blocked`, `cancelled`                 |
+| Ticket      | `ready`                                          | `running`, `blocked`, `cancelled`               |
+| Ticket      | `running`                                        | `done`, `blocked`, `failed`, `cancelled`        |
+| Ticket      | `blocked`                                        | `ready`, `cancelled`                            |
+| Ticket      | `done`, `failed`, `cancelled`                    | None                                            |
+| Assignment  | `assigned`                                       | `active`, `failed`, `cancelled`                 |
+| Assignment  | `active`                                         | `released`, `failed`, `cancelled`               |
+| Assignment  | `released`, `failed`, `cancelled`                | None                                            |
+| Transaction | `declared`                                       | `admitted`, `rejected`, `cancelled`, `failed`   |
+| Transaction | `admitted`                                       | `running`, `rejected`, `cancelled`, `failed`    |
+| Transaction | `running`                                        | `prepared`, `rejected`, `cancelled`, `failed`   |
+| Transaction | `prepared`                                       | `validating`, `rejected`, `cancelled`, `failed` |
+| Transaction | `validating`                                     | `eligible`, `rejected`, `cancelled`, `failed`   |
+| Transaction | `eligible`                                       | `committed`, `rejected`, `cancelled`, `failed`  |
+| Transaction | `committed`                                      | `compensating`                                  |
+| Transaction | `compensating`                                   | `compensated`, `failed`                         |
+| Transaction | `rejected`, `cancelled`, `compensated`, `failed` | None                                            |
+
+These tables answer only whether an edge is structurally legal. Lifecycle
+ownership, dependency satisfaction, assignment ownership, timestamps,
+persistence, event emission, validation evidence, stale-version checks, and
+commit eligibility belong to later application and transaction tickets.
+
 ## Interfaces
 
 ### Repository configuration
@@ -596,23 +651,31 @@ Configuration is versioned. A run stores the exact resolved configuration used a
 
 ```typescript
 interface IntentContractV1 {
+  schema_version: 1;
+  id: string;
+  assignment_id: string;
+  version: number;
   goal: string;
-  reads: ResourceSelector[];
-  writes: ResourceSelector[];
-  assumptions: Assumption[];
-  publicContractChanges: ContractChange[];
-  requiredValidations: string[];
-  declaredEffects: DeclaredEffect[];
+  reads: ResourceSelectorV1[];
+  writes: ResourceSelectorV1[];
+  assumptions: AssumptionV1[];
+  public_contract_changes: ContractChangeV1[];
+  required_validations: string[];
+  declared_effects: DeclaredEffectV1[];
+  created_at: string;
 }
 
-interface Assumption {
+interface AssumptionV1 {
   id: string;
   statement: string;
-  resource?: ResourceSelector;
-  expectedVersion?: string;
-  severityIfInvalid: "warning" | "replan" | "block";
+  resource: ResourceSelectorV1 | null;
+  expected_version: string | null;
+  severity_if_invalid: "warning" | "replan" | "block";
 }
 ```
+
+This interface describes the serialized wire shape. Any later camelCase
+application model must use an explicit adapter outside `packages/domain`.
 
 ### Conflict detector interface
 
@@ -645,7 +708,10 @@ Workers submit batches of normalized events through an authenticated local endpo
 
 ```typescript
 interface ValidationAdapter {
-  prepare(definition: ValidationDefinition, context: ValidationContext): Promise<PreparedValidation>;
+  prepare(
+    definition: ValidationDefinition,
+    context: ValidationContext,
+  ): Promise<PreparedValidation>;
   execute(prepared: PreparedValidation): Promise<ValidationExecutionResult>;
 }
 ```

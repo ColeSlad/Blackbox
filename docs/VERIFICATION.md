@@ -98,12 +98,21 @@ Any deliberate invariant change requires an approved architecture decision recor
 When a ticket changes a schema, event, configuration, or state machine:
 
 1. Add or update the explicit version.
-2. Test current valid examples.
-3. Test invalid input and unknown versions.
-4. Test backward reading or migration behavior when promised.
-5. Confirm old records are not silently reinterpreted.
-6. Confirm generated clients or shared types are updated.
-7. Record compatibility implications.
+2. Parse external input from `unknown` and test current valid examples.
+3. Test missing, malformed, and unsupported versions, including version-error
+   precedence over ordinary shape errors.
+4. Test every required property, explicit-null boundary, enum, strict-object
+   boundary, uniqueness rule, and conditional invariant.
+5. Confirm schema failures expose safe issue paths and do not retain the
+   rejected payload.
+6. For state machines, test every state pair against the immutable legal-edge
+   table, including unknown current and target states.
+7. Run the deterministic package-boundary check when domain or contract code
+   changes.
+8. Test backward reading or migration behavior when promised.
+9. Confirm old records are not silently reinterpreted.
+10. Confirm generated clients or shared types are updated.
+11. Record compatibility implications and later-ticket ownership boundaries.
 
 ## Database verification
 
