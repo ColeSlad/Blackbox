@@ -6,6 +6,25 @@ Blackbox judges agent work by observable repository state and recorded evidence,
 
 A check that did not run is not a passing check.
 
+## Canonical pre-merge verification
+
+Use Node.js `24.18.0`, enable Corepack, and install the root-pinned pnpm
+`10.31.0` dependency graph from the committed lockfile. Then run:
+
+```sh
+pnpm verify
+```
+
+The repository-owned verification runner invokes these commands directly and
+in order: `format:check`, `lint`, `typecheck`, `test:unit`, `build`, and
+`test:integration`. It stops after the first unsuccessful gate and preserves
+that gate's output and exit status. GitHub Actions invokes the same aggregate
+command after a frozen-lockfile install.
+
+`pnpm test` remains an alias for the unit-test command. When run outside the
+aggregate flow, `pnpm test:integration` expects `pnpm build` to have produced
+the current CLI, server, worker, and web artifacts first.
+
 ## Every ticket
 
 1. Confirm the ticket was Ready before implementation began.
