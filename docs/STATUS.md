@@ -1,7 +1,7 @@
 # Repository Status
 
 Last updated: 2026-07-18
-Last validated commit: 3c2861b
+Last validated commit: d46eef2
 Current milestone: M0 — Project setup and architecture validation
 
 ## Completed capabilities
@@ -30,10 +30,10 @@ Current milestone: M0 — Project setup and architecture validation
 
 ## In progress
 
-- No product ticket is currently Ready or in progress.
-- T0004 — PostgreSQL Persistence and Migrations remains Draft. Its T0002 and
-  T0003 dependencies are Done, but it still requires separate validation and
-  explicit human promotion before implementation.
+- T0004 — PostgreSQL Persistence and Migrations is Ready and selected for the
+  next implementation run; implementation has not begun.
+- Docker Engine with Compose v2 is not installed on this host, so the T0004
+  writer must not start until that documented prerequisite is available.
 
 ## Current limitations
 
@@ -147,10 +147,9 @@ These commands are not implemented and must not be documented as available elsew
 
 ## Next eligible ticket
 
-No ticket is currently Ready. T0004 — PostgreSQL Persistence and Migrations is
-the next dependency-eligible Draft ticket because T0002 and T0003 are Done; it
-must pass separate validation and receive explicit human promotion before work
-begins.
+T0004 — PostgreSQL Persistence and Migrations is the selected Ready ticket, and
+its T0002 and T0003 dependencies are Done. Implementation must wait until Docker
+Engine with Compose v2 is installed and usable on the execution host.
 
 ## Current milestone exit criteria
 
