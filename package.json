@@ -13,12 +13,15 @@
     "dev:server": "pnpm --filter @blackbox/server dev",
     "dev:worker": "pnpm --filter @blackbox/worker dev",
     "dev:web": "pnpm --filter @blackbox/web dev",
-    "format": "prettier --write --ignore-unknown apps packages fixtures package.json pnpm-workspace.yaml eslint.config.js README.md",
-    "format:check": "prettier --check --ignore-unknown apps packages fixtures package.json pnpm-workspace.yaml eslint.config.js README.md",
-    "lint": "eslint apps packages fixtures",
+    "format": "prettier --write --ignore-unknown apps packages fixtures scripts/verification .github/workflows/verify.yml package.json pnpm-workspace.yaml eslint.config.js README.md",
+    "format:check": "prettier --check --ignore-unknown apps packages fixtures scripts/verification .github/workflows/verify.yml package.json pnpm-workspace.yaml eslint.config.js README.md",
+    "lint": "eslint apps packages fixtures scripts/verification",
     "typecheck": "pnpm -r --if-present typecheck",
-    "test": "pnpm -r --if-present test",
-    "build": "pnpm -r --if-present build"
+    "test": "pnpm run test:unit",
+    "test:unit": "vitest run",
+    "test:integration": "node --test scripts/verification/integration-smoke.mjs",
+    "build": "pnpm -r --if-present build",
+    "verify": "node scripts/verification/run-verification.mjs"
   },
   "dependencies": {
     "@blackbox/cli": "workspace:*"

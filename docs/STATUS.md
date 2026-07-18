@@ -1,6 +1,6 @@
 # Repository Status
 
-Last updated: 2026-07-17
+Last updated: 2026-07-18
 Last validated commit: not yet recorded
 Current milestone: M0 — Project setup and architecture validation
 
@@ -20,8 +20,13 @@ Current milestone: M0 — Project setup and architecture validation
 
 ## In progress
 
-- No ticket is currently in progress.
-- T0002 remains Draft pending separate validation and human promotion to Ready.
+- T0002 — Development Tooling and CI is Ready and selected for interactive
+  execution. Its implementation now includes a fail-fast aggregate verification
+  runner, separate unit and built-boundary integration commands, an exact Node
+  version file, and a least-privilege GitHub Actions verification workflow.
+- T0002 automated checks pass locally under Node.js 24.18.0 and pnpm 10.31.0.
+  Independent review, documented manual failure checks, and observation of a
+  GitHub Actions run remain pending.
 
 ## Current limitations
 
@@ -37,6 +42,8 @@ Current milestone: M0 — Project setup and architecture validation
 - Filesystem-read instrumentation remains an open technical decision.
 - Causal diagnosis metrics currently have definitions but no benchmark implementation.
 - The MVP is limited to local Git repositories and coding-agent effects.
+- The verification workflow is configured but has not yet been observed on a
+  GitHub-hosted runner.
 
 ## Installed dependencies
 
@@ -56,7 +63,10 @@ Current milestone: M0 — Project setup and architecture validation
 - `pnpm lint`
 - `pnpm typecheck`
 - `pnpm test`
+- `pnpm test:unit`
 - `pnpm build`
+- `pnpm test:integration` after a production build
+- `pnpm verify`
 
 Planned product command surface:
 
@@ -76,8 +86,11 @@ These commands are not implemented and must not be documented as available elsew
 - Formatting: pass
 - Lint: pass
 - Type checking: pass
-- Tests: pass, including server, CLI, and web smoke coverage
+- Unit tests: pass, including verification-runner ordering, failure propagation,
+  and CI policy contracts
 - Production build: pass
+- Integration tests: pass for built CLI, server, worker, and web boundaries
+- Aggregate verification: pass locally under the exact version in `.node-version`
 - Runtime smoke checks: pass for server, CLI, worker, and web development server
 - Browser verification: pass for the rendered application shell with no console errors
 - Independent review: pass
@@ -97,8 +110,7 @@ These commands are not implemented and must not be documented as available elsew
 
 ## Next eligible ticket
 
-None. T0002 — Development Tooling and CI depends on completed T0001 but remains
-Draft until separately validated and promoted to Ready.
+T0002 — Development Tooling and CI is Ready. Its T0001 dependency is Done.
 
 ## Current milestone exit criteria
 
