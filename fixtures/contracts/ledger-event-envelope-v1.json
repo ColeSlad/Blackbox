@@ -1,0 +1,23 @@
+{
+  "schema_version": 1,
+  "event_id": "event-1",
+  "event_type": "transaction.prepared",
+  "occurred_at": "2026-07-18T12:05:00Z",
+  "recorded_at": "2026-07-18T12:05:01Z",
+  "run_id": "run-1",
+  "ticket_id": "ticket-1",
+  "assignment_id": "assignment-1",
+  "transaction_id": "transaction-1",
+  "correlation_id": null,
+  "causation_id": null,
+  "sequence": 1,
+  "producer": "blackbox-worker",
+  "payload": {
+    "attempt": 1,
+    "metadata": {
+      "ready": true,
+      "tags": ["foundation", null]
+    }
+  },
+  "payload_hash": "sha256:cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc"
+}

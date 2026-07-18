@@ -1,7 +1,7 @@
 # Repository Status
 
 Last updated: 2026-07-18
-Last validated commit: a2d9328
+Last validated commit: 3c2861b
 Current milestone: M0 — Project setup and architecture validation
 
 ## Completed capabilities
@@ -21,10 +21,19 @@ Current milestone: M0 — Project setup and architecture validation
   checking, unit tests, production build, and built-boundary integration tests.
 - A least-privilege GitHub Actions verification workflow using the exact Node.js
   and pnpm versions required locally.
+- Dependency-free domain errors, four lifecycle vocabularies, immutable
+  transition tables, and pure transition functions for runs, tickets,
+  assignments, and transactions.
+- Eleven strict version-one TypeBox contract families with safe parsers,
+  stable errors, inspectable fixtures, and deterministic package-boundary
+  enforcement.
 
 ## In progress
 
-- No ticket is currently in progress.
+- No product ticket is currently Ready or in progress.
+- T0004 — PostgreSQL Persistence and Migrations remains Draft. Its T0002 and
+  T0003 dependencies are Done, but it still requires separate validation and
+  explicit human promotion before implementation.
 
 ## Current limitations
 
@@ -33,7 +42,10 @@ Current milestone: M0 — Project setup and architecture validation
 - The web application is a minimal shell with no product workflow or API
   integration.
 - The worker has no queue, job lifecycle, or agent-execution behavior.
-- The domain package contains no product domain contracts yet.
+- Domain and contract packages define syntax and structurally legal lifecycle
+  edges only. They do not orchestrate runs, resolve resources, persist records,
+  emit events, execute validations, detect conflicts, analyze causality, or
+  evaluate guardrails.
 - No database schema, persistence layer, repository adapter, or Git behavior
   exists.
 - The product Codex subprocess adapter has not been implemented or validated.
@@ -45,6 +57,8 @@ Current milestone: M0 — Project setup and architecture validation
 
 - Node.js 24 LTS and pnpm 10.31.0 are the required development platform.
 - Runtime packages are Fastify 5.10.0, React 19.2.7, and React DOM 19.2.7.
+- `packages/contracts` uses exactly `typebox@1.3.6`; registry metadata reports
+  MIT licensing and no runtime, peer, or optional dependencies.
 - The committed lockfile pins the approved TypeScript, Vite, Vitest, ESLint,
   Prettier, TSX, and type-definition toolchain.
 
@@ -63,6 +77,8 @@ Current milestone: M0 — Project setup and architecture validation
 - `pnpm build`
 - `pnpm test:integration` after a production build
 - `pnpm verify`
+- `pnpm --filter @blackbox/domain test`
+- `pnpm --filter @blackbox/contracts test`
 
 Planned product command surface:
 
@@ -98,6 +114,23 @@ These commands are not implemented and must not be documented as available elsew
 - T0002 manual fault probes: pass for visible formatting, type-checking, and
   unit-test failures; all temporary changes were restored and final
   `pnpm verify` passed
+- T0003 focused domain tests: pass, 252 tests covering every run, ticket,
+  assignment, and transaction state pair plus unknown-state and immutability
+  behavior
+- T0003 focused contract tests: pass, 82 tests covering all eleven valid
+  fixtures, version precedence, strictness, required/null rules, enums,
+  uniqueness, recursive JSON, conditional invariants, safe errors, and package
+  boundaries
+- T0003 domain and contract type checks and builds: pass
+- T0003 aggregate `pnpm verify`: pass under Node.js 24.18.0 with formatting,
+  lint, all workspace type checks, 347 unit tests, all production builds, and
+  built-boundary integration smoke coverage
+- T0003 frozen offline install: pass; `pnpm audit --json` reports zero known
+  vulnerabilities across 297 dependencies
+- T0003 final verification audit: `GO`; fresh independent ticket review: `GO`
+  with no unresolved blocker
+- T0003 manual verification: pass, recorded exactly once in
+  `.codex-runs/manual/T0003.md`
 - Database migrations: not available
 - Browser tests: not available
 - Demo scenario: not available
@@ -114,8 +147,10 @@ These commands are not implemented and must not be documented as available elsew
 
 ## Next eligible ticket
 
-No ticket is Ready. T0003 remains Draft in the ticket index and requires a
-separate validation and explicit human promotion before implementation.
+No ticket is currently Ready. T0004 — PostgreSQL Persistence and Migrations is
+the next dependency-eligible Draft ticket because T0002 and T0003 are Done; it
+must pass separate validation and receive explicit human promotion before work
+begins.
 
 ## Current milestone exit criteria
 

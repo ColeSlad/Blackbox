@@ -1,0 +1,15 @@
+{
+  "schema_version": 1,
+  "id": "transaction-1",
+  "run_id": "run-1",
+  "ticket_id": "ticket-1",
+  "assignment_id": "assignment-1",
+  "intent_contract_id": "intent-1",
+  "intent_version": 1,
+  "base_commit_sha": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+  "prepared_patch_hash": "sha256:bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
+  "status": "prepared",
+  "created_at": "2026-07-18T12:04:00Z",
+  "updated_at": "2026-07-18T12:05:00Z",
+  "completed_at": null
+}

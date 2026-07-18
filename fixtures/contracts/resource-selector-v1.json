@@ -1,0 +1,5 @@
+{
+  "schema_version": 1,
+  "kind": "path",
+  "locator": "packages/domain/src/index.ts"
+}

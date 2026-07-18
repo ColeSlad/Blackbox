@@ -1,0 +1,13 @@
+{
+  "schema_version": 1,
+  "finding_type": "edge",
+  "id": "finding-1",
+  "run_id": "run-1",
+  "kind": "derived_from",
+  "from_node_id": "node-1",
+  "to_node_id": "node-2",
+  "provenance": "inferred",
+  "confidence": 0.8,
+  "analyzer_version": "analyzer-1",
+  "evidence_event_ids": ["event-1"]
+}

@@ -20,36 +20,36 @@
 
 ## Tickets
 
-| ID | Title | Status | Dependencies |
-|---|---|---|---|
-| T0001 | Project Skeleton | Done | None |
-| T0002 | Development Tooling and CI | Done | T0001 |
-| T0003 | Core Domain Contracts | Draft | T0001 |
-| T0004 | PostgreSQL Persistence and Migrations | Draft | T0002, T0003 |
-| T0005 | Repository Registration and Git Adapter | Draft | T0003 |
-| T0006 | Run, Ticket, and Assignment Lifecycle | Draft | T0003, T0004 |
-| T0007 | Isolated Worktree Manager | Draft | T0005, T0006 |
-| T0008 | Versioned Intent Registry | Draft | T0003, T0004, T0006 |
-| T0009 | Append-Only Execution Ledger | Draft | T0003, T0004, T0006 |
-| T0010 | Worker Queue and Job Lifecycle | Draft | T0004, T0006 |
-| T0011 | Instrumented Command Runner | Draft | T0007, T0009, T0010 |
-| T0012 | Codex CLI Adapter | Draft | T0011 |
-| T0013 | Validation Definitions and Runner | Draft | T0007, T0009, T0010, T0011 |
-| T0014 | Transaction State Machine | Draft | T0006, T0008, T0009, T0013 |
-| T0015 | Deterministic Conflict Engine | Draft | T0008, T0009, T0014 |
-| T0016 | Integration Worktree and Prepare Pipeline | Draft | T0007, T0013, T0014, T0015 |
-| T0017 | Run Timeline and Evidence API | Draft | T0009, T0014, T0015 |
-| T0018 | Web Run Dashboard | Draft | T0002, T0017 |
-| T0019 | Causal Graph Projection | Draft | T0008, T0009, T0013, T0015 |
-| T0020 | Failure Slice and Earliest-Decisive Analysis | Draft | T0019 |
-| T0021 | Replay Bundle and Local Replay | Draft | T0007, T0009, T0013, T0016 |
-| T0022 | Failure Report UI | Draft | T0018, T0020, T0021 |
-| T0023 | Guardrail Definition and Evaluation | Draft | T0015, T0020, T0021 |
-| T0024 | Deterministic Scenario Harness | Draft | T0013, T0015, T0021 |
-| T0025 | MVP Benchmark Suite | Draft | T0020, T0023, T0024 |
-| T0026 | End-to-End Codex Demo | Draft | T0012, T0016, T0018, T0022, T0023, T0025 |
-| T0027 | Security, Redaction, and Replay Hardening | Draft | T0011, T0017, T0021 |
-| T0028 | Release Documentation and Installation Verification | Draft | T0026, T0027 |
+| ID    | Title                                               | Status | Dependencies                             |
+| ----- | --------------------------------------------------- | ------ | ---------------------------------------- |
+| T0001 | Project Skeleton                                    | Done   | None                                     |
+| T0002 | Development Tooling and CI                          | Done   | T0001                                    |
+| T0003 | Core Domain Contracts                               | Done   | T0001                                    |
+| T0004 | PostgreSQL Persistence and Migrations               | Draft  | T0002, T0003                             |
+| T0005 | Repository Registration and Git Adapter             | Draft  | T0003                                    |
+| T0006 | Run, Ticket, and Assignment Lifecycle               | Draft  | T0003, T0004                             |
+| T0007 | Isolated Worktree Manager                           | Draft  | T0005, T0006                             |
+| T0008 | Versioned Intent Registry                           | Draft  | T0003, T0004, T0006                      |
+| T0009 | Append-Only Execution Ledger                        | Draft  | T0003, T0004, T0006                      |
+| T0010 | Worker Queue and Job Lifecycle                      | Draft  | T0004, T0006                             |
+| T0011 | Instrumented Command Runner                         | Draft  | T0007, T0009, T0010                      |
+| T0012 | Codex CLI Adapter                                   | Draft  | T0011                                    |
+| T0013 | Validation Definitions and Runner                   | Draft  | T0007, T0009, T0010, T0011               |
+| T0014 | Transaction State Machine                           | Draft  | T0006, T0008, T0009, T0013               |
+| T0015 | Deterministic Conflict Engine                       | Draft  | T0008, T0009, T0014                      |
+| T0016 | Integration Worktree and Prepare Pipeline           | Draft  | T0007, T0013, T0014, T0015               |
+| T0017 | Run Timeline and Evidence API                       | Draft  | T0009, T0014, T0015                      |
+| T0018 | Web Run Dashboard                                   | Draft  | T0002, T0017                             |
+| T0019 | Causal Graph Projection                             | Draft  | T0008, T0009, T0013, T0015               |
+| T0020 | Failure Slice and Earliest-Decisive Analysis        | Draft  | T0019                                    |
+| T0021 | Replay Bundle and Local Replay                      | Draft  | T0007, T0009, T0013, T0016               |
+| T0022 | Failure Report UI                                   | Draft  | T0018, T0020, T0021                      |
+| T0023 | Guardrail Definition and Evaluation                 | Draft  | T0015, T0020, T0021                      |
+| T0024 | Deterministic Scenario Harness                      | Draft  | T0013, T0015, T0021                      |
+| T0025 | MVP Benchmark Suite                                 | Draft  | T0020, T0023, T0024                      |
+| T0026 | End-to-End Codex Demo                               | Draft  | T0012, T0016, T0018, T0022, T0023, T0025 |
+| T0027 | Security, Redaction, and Replay Hardening           | Draft  | T0011, T0017, T0021                      |
+| T0028 | Release Documentation and Installation Verification | Draft  | T0026, T0027                             |
 
 ## Ticket details
 

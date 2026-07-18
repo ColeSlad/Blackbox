@@ -1,0 +1,11 @@
+{
+  "schema_version": 1,
+  "id": "assignment-1",
+  "run_id": "run-1",
+  "ticket_id": "ticket-1",
+  "agent_id": "agent-1",
+  "worktree_id": "worktree-1",
+  "status": "active",
+  "assigned_at": "2026-07-18T12:02:00Z",
+  "released_at": null
+}
