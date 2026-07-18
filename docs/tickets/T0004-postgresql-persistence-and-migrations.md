@@ -1,6 +1,6 @@
 # T0004 — PostgreSQL Persistence and Migrations
 
-Status: Draft
+Status: Ready
 Milestone: M0 — Foundation
 
 ## Outcome
