@@ -11,17 +11,28 @@ Current milestone: M0 — Project setup and architecture validation
 - Ticket dependency graph and verification policy.
 - Initial MVP success metrics and benchmark targets.
 - Accepted implementation-platform and Codex CLI boundary decisions.
+- A pnpm workspace separating server, worker, web, CLI, domain,
+  shared-configuration, and fixture boundaries.
+- A minimal Fastify server exposing `GET /version`, a `blackbox --version` CLI,
+  a React/Vite application shell, and a compilable worker entry point.
+- Reproducible root commands for formatting, linting, type checking, tests, and
+  production builds.
 
 ## In progress
 
-- Defining the repository skeleton and development commands.
-- Converting the initial ticket set from Draft to Ready.
+- No ticket is currently in progress.
+- T0002 remains Draft pending separate validation and human promotion to Ready.
 
 ## Current limitations
 
-- Application implementation has not started.
-- The approved pnpm workspace has not yet been materialized.
-- No database schema, API, CLI, worker, or web interface exists.
+- The server exposes only the version endpoint; no product API exists.
+- The CLI implements only `blackbox --version`.
+- The web application is a minimal shell with no product workflow or API
+  integration.
+- The worker has no queue, job lifecycle, or agent-execution behavior.
+- The domain package contains no product domain contracts yet.
+- No database schema, persistence layer, repository adapter, or Git behavior
+  exists.
 - The product Codex subprocess adapter has not been implemented or validated.
 - Filesystem-read instrumentation remains an open technical decision.
 - Causal diagnosis metrics currently have definitions but no benchmark implementation.
@@ -29,13 +40,25 @@ Current milestone: M0 — Project setup and architecture validation
 
 ## Installed dependencies
 
-None yet.
+- Node.js 24 LTS and pnpm 10.31.0 are the required development platform.
+- Runtime packages are Fastify 5.10.0, React 19.2.7, and React DOM 19.2.7.
+- The committed lockfile pins the approved TypeScript, Vite, Vitest, ESLint,
+  Prettier, TSX, and type-definition toolchain.
 
 ## Available commands
 
-None yet.
+- `pnpm install --frozen-lockfile`
+- `pnpm dev:server`
+- `pnpm dev:worker`
+- `pnpm dev:web`
+- `pnpm exec blackbox --version` after building
+- `pnpm format:check`
+- `pnpm lint`
+- `pnpm typecheck`
+- `pnpm test`
+- `pnpm build`
 
-Planned command surface:
+Planned product command surface:
 
 - `blackbox init`
 - `blackbox dev`
@@ -49,10 +72,15 @@ These commands are not implemented and must not be documented as available elsew
 
 ## Verification status
 
-- Build: not available
-- Tests: not available
-- Lint: not available
-- Type checking: not available
+- Dependency installation from the lockfile: pass
+- Formatting: pass
+- Lint: pass
+- Type checking: pass
+- Tests: pass, including server, CLI, and web smoke coverage
+- Production build: pass
+- Runtime smoke checks: pass for server, CLI, worker, and web development server
+- Browser verification: pass for the rendered application shell with no console errors
+- Independent review: pass
 - Database migrations: not available
 - Browser tests: not available
 - Demo scenario: not available
@@ -60,15 +88,17 @@ These commands are not implemented and must not be documented as available elsew
 
 ## Known issues
 
-- Exact dependency versions and setup commands await the T0001 scaffold and
-  lockfile.
+- pnpm reports that the transitive esbuild lifecycle script is blocked during
+  install; installation, tests, development startup, and production builds pass
+  without approving that script.
 - The first release must avoid claiming deterministic model replay.
 - The architecture depends on an append-only event ledger; schema discipline must be established before feature work.
 - The MVP conflict engine needs an explicit list of hard-blocking versus advisory detectors.
 
 ## Next eligible ticket
 
-T0001 — Project Skeleton
+None. T0002 — Development Tooling and CI depends on completed T0001 but remains
+Draft until separately validated and promoted to Ready.
 
 ## Current milestone exit criteria
 

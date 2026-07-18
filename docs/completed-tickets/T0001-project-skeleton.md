@@ -1,6 +1,6 @@
 # T0001 — Project Skeleton
 
-Status: Ready
+Status: Done
 
 ## Outcome
 
@@ -238,3 +238,49 @@ Run the commands defined by the chosen package manager for:
 ## Rollback
 
 Revert the ticket commit or delete the ticket branch.
+
+## Completion evidence
+
+Completed: 2026-07-17
+
+Accepted implementation:
+
+- Materialized the approved pnpm workspace with separate server, worker, web,
+  CLI, domain, shared-configuration, and fixture boundaries.
+- Added the Fastify `GET /version` endpoint, `blackbox --version` command,
+  React/Vite application shell, and compilable worker entry point.
+- Added the documented root setup, development, formatting, linting, type-check,
+  test, and production-build commands.
+- Added server, CLI, and web smoke tests without persistence, Git, agent
+  execution, or later-ticket product behavior.
+
+Automated evidence:
+
+- `pnpm install --frozen-lockfile`: pass.
+- `pnpm format:check`: pass.
+- `pnpm lint`: pass.
+- `pnpm typecheck`: pass.
+- `pnpm test`: pass.
+- `pnpm build`: pass.
+- Generated-artifact ignore verification: pass.
+- Server, CLI, worker, and Vite runtime probes: pass.
+- Dependency security audit: pass with zero reported vulnerabilities.
+- Final verification audit: `GO`.
+- Independent ticket review: `PASS` with no unresolved blocker.
+
+Manual evidence:
+
+- `.codex-runs/manual/T0001.md` records exactly one unambiguous
+  `Manual verification: Pass` result.
+- The human verifier confirmed dependency installation, the server version
+  response, CLI version output, Vite startup, the rendered Blackbox shell, no
+  browser-console errors, and the production build.
+
+Current limitations:
+
+- This ticket provides only application boundaries and version-level smoke
+  behavior; persistence, Git operations, agent execution, product domain
+  contracts, and product workflows remain unimplemented.
+- pnpm reports a blocked transitive esbuild lifecycle script during install;
+  the accepted installation, tests, runtime probes, and build pass without
+  approving it.

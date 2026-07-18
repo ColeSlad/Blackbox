@@ -22,7 +22,7 @@
 
 | ID | Title | Status | Dependencies |
 |---|---|---|---|
-| T0001 | Project Skeleton | Ready | None |
+| T0001 | Project Skeleton | Done | None |
 | T0002 | Development Tooling and CI | Draft | T0001 |
 | T0003 | Core Domain Contracts | Draft | T0001 |
 | T0004 | PostgreSQL Persistence and Migrations | Draft | T0002, T0003 |
