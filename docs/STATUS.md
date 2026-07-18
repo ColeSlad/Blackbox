@@ -1,7 +1,7 @@
 # Repository Status
 
 Last updated: 2026-07-18
-Last validated commit: not yet recorded
+Last validated commit: a2d9328
 Current milestone: M0 — Project setup and architecture validation
 
 ## Completed capabilities
@@ -17,16 +17,14 @@ Current milestone: M0 — Project setup and architecture validation
   a React/Vite application shell, and a compilable worker entry point.
 - Reproducible root commands for formatting, linting, type checking, tests, and
   production builds.
+- A canonical fail-fast `pnpm verify` command covering formatting, linting, type
+  checking, unit tests, production build, and built-boundary integration tests.
+- A least-privilege GitHub Actions verification workflow using the exact Node.js
+  and pnpm versions required locally.
 
 ## In progress
 
-- T0002 — Development Tooling and CI is Ready and selected for interactive
-  execution. Its implementation now includes a fail-fast aggregate verification
-  runner, separate unit and built-boundary integration commands, an exact Node
-  version file, and a least-privilege GitHub Actions verification workflow.
-- T0002 automated checks pass locally under Node.js 24.18.0 and pnpm 10.31.0.
-  Independent review, documented manual failure checks, and observation of a
-  GitHub Actions run remain pending.
+- No ticket is currently in progress.
 
 ## Current limitations
 
@@ -42,8 +40,6 @@ Current milestone: M0 — Project setup and architecture validation
 - Filesystem-read instrumentation remains an open technical decision.
 - Causal diagnosis metrics currently have definitions but no benchmark implementation.
 - The MVP is limited to local Git repositories and coding-agent effects.
-- The verification workflow is configured but has not yet been observed on a
-  GitHub-hosted runner.
 
 ## Installed dependencies
 
@@ -91,9 +87,17 @@ These commands are not implemented and must not be documented as available elsew
 - Production build: pass
 - Integration tests: pass for built CLI, server, worker, and web boundaries
 - Aggregate verification: pass locally under the exact version in `.node-version`
+- Compatibility `pnpm test` command: pass
+- GitHub-hosted verification: pass for run `29655014542`, job `88107670217`,
+  using the canonical `pnpm verify` command
+- T0002 static scope, workflow-policy, version-parity, diff, and Codex harness
+  checks: pass
 - Runtime smoke checks: pass for server, CLI, worker, and web development server
 - Browser verification: pass for the rendered application shell with no console errors
 - Independent review: pass
+- T0002 manual fault probes: pass for visible formatting, type-checking, and
+  unit-test failures; all temporary changes were restored and final
+  `pnpm verify` passed
 - Database migrations: not available
 - Browser tests: not available
 - Demo scenario: not available
@@ -110,7 +114,8 @@ These commands are not implemented and must not be documented as available elsew
 
 ## Next eligible ticket
 
-T0002 — Development Tooling and CI is Ready. Its T0001 dependency is Done.
+No ticket is Ready. T0003 remains Draft in the ticket index and requires a
+separate validation and explicit human promotion before implementation.
 
 ## Current milestone exit criteria
 

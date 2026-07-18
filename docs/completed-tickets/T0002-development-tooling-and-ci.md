@@ -1,6 +1,6 @@
 # T0002 — Development Tooling and CI
 
-Status: Ready
+Status: Done
 Milestone: M0 — Foundation
 
 ## Outcome
@@ -223,8 +223,49 @@ Revert the ticket commit. No persistent state or migration is involved.
 - Real built-boundary integration coverage
 - No product or harness scope expansion
 
-## Readiness
+## Completion Evidence
 
-No unresolved architectural or dependency decision remains. Separate
-`plan_validator` review and explicit human promotion are still required before
-Ready.
+Completed: 2026-07-18
+
+Accepted implementation:
+
+- Implementation commit: `59269d3`.
+- Pull request #1 merged as
+  `a2d932815c8a7fe337f732629e36b33a96568685`.
+- Added the repository-owned fail-fast verification runner, separate unit and
+  built-boundary integration commands, exact Node.js version pin, and
+  least-privilege GitHub Actions verification workflow.
+- Preserved product behavior and the protected application, domain,
+  persistence, and Codex harness boundaries.
+
+Automated evidence:
+
+- Verification environment: Node.js `v24.18.0` and pnpm `10.31.0`.
+- `corepack pnpm install --frozen-lockfile`: pass.
+- `pnpm format:check`: pass.
+- `pnpm lint`: pass.
+- `pnpm typecheck`: pass.
+- `pnpm test:unit`: pass with 13 unit tests.
+- `pnpm build`: pass.
+- `pnpm test:integration`: pass with one built-boundary integration test.
+- Compatibility `pnpm test`: pass.
+- `pnpm verify`: pass.
+- Static scope, workflow-policy, version-parity, diff, and Codex harness checks:
+  pass.
+- Independent ticket review: `PASS` with no unresolved blocker.
+- GitHub Actions Verify run `29655014542`, job `88107670217`: pass using the
+  canonical `pnpm verify` command.
+
+Manual evidence:
+
+- `.codex-runs/manual/T0002.md` records exactly one unambiguous
+  `Manual verification: Pass` result.
+- The human verifier confirmed visible non-zero formatting, type-checking, and
+  unit-test failures, restored every temporary probe, and confirmed the final
+  `pnpm verify` passed.
+
+Current limitations:
+
+- This ticket adds development verification only; it does not add product APIs,
+  domain contracts, persistence, browser automation, deployment, or Codex
+  automation.
