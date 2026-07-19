@@ -1,6 +1,6 @@
 # T0005 — Repository Registration and Git Adapter
 
-Status: Draft
+Status: Ready
 Milestone: M1 — Transactional execution
 
 ## Outcome
