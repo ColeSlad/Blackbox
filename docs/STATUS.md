@@ -1,7 +1,7 @@
 # Repository Status
 
 Last updated: 2026-07-19
-Last validated commit: a2298a4
+Last validated commit: 2bd5816
 Current milestone: M1 — Transactional execution
 
 ## Completed capabilities
@@ -51,9 +51,8 @@ Current milestone: M1 — Transactional execution
 
 ## In progress
 
-- No product ticket is currently in progress.
-- T0007 — Isolated Worktree Manager is dependency-eligible but remains Draft
-  pending separate validation and explicit human promotion.
+- T0007 — Isolated Worktree Manager is Ready and selected for the next
+  implementation run; implementation has not begun.
 
 ## Current limitations
 
@@ -265,9 +264,8 @@ These commands are not implemented and must not be documented as available elsew
 
 ## Next eligible ticket
 
-T0007 is dependency-eligible now that T0005 and T0006 are Done, but remains
-Draft and requires separate validation and explicit human promotion before
-implementation.
+T0007 — Isolated Worktree Manager is Ready with T0005 and T0006 Done after
+separate read-only validation and explicit human promotion.
 
 ## Current milestone status
 

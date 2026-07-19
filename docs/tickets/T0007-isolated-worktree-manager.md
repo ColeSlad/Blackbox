@@ -1,6 +1,6 @@
 # T0007 — Isolated Worktree Manager
 
-Status: Draft
+Status: Ready
 Milestone: M1 — Transactional execution
 
 ## Outcome
