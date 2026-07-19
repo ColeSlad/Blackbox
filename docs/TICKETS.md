@@ -27,7 +27,7 @@
 | T0003 | Core Domain Contracts                               | Done   | T0001                                    |
 | T0004 | PostgreSQL Persistence and Migrations               | Done   | T0002, T0003                             |
 | T0005 | Repository Registration and Git Adapter             | Done   | T0003                                    |
-| T0006 | Run, Ticket, and Assignment Lifecycle               | Draft  | T0003, T0004                             |
+| T0006 | Run, Ticket, and Assignment Lifecycle               | Ready  | T0003, T0004                             |
 | T0007 | Isolated Worktree Manager                           | Draft  | T0005, T0006                             |
 | T0008 | Versioned Intent Registry                           | Draft  | T0003, T0004, T0006                      |
 | T0009 | Append-Only Execution Ledger                        | Draft  | T0003, T0004, T0006                      |
