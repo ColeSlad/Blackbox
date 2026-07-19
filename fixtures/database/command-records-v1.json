@@ -1,0 +1,84 @@
+{
+  "run": {
+    "schema_version": 1,
+    "id": "10000000-0000-4000-8000-000000000001",
+    "repository_id": "10000000-0000-4000-8000-000000000002",
+    "title": "Database fixture run",
+    "base_commit_sha": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+    "status": "created",
+    "configuration_version": 1,
+    "created_at": "2026-07-19T00:00:00.000Z",
+    "started_at": null,
+    "completed_at": null
+  },
+  "prerequisite_ticket": {
+    "schema_version": 1,
+    "id": "20000000-0000-4000-8000-000000000001",
+    "run_id": "10000000-0000-4000-8000-000000000001",
+    "external_key": "fixture-prerequisite",
+    "title": "Fixture prerequisite",
+    "description": "Provides a same-run dependency target.",
+    "status": "done",
+    "dependencies": [],
+    "acceptance_criteria": [],
+    "manual_verification_steps": []
+  },
+  "ticket": {
+    "schema_version": 1,
+    "id": "20000000-0000-4000-8000-000000000002",
+    "run_id": "10000000-0000-4000-8000-000000000001",
+    "external_key": "fixture-ticket",
+    "title": "Fixture ticket",
+    "description": "Exercises ticket dependency persistence.",
+    "status": "ready",
+    "dependencies": ["20000000-0000-4000-8000-000000000001"],
+    "acceptance_criteria": ["Persistence round trips."],
+    "manual_verification_steps": ["Inspect the record."]
+  },
+  "assignment": {
+    "schema_version": 1,
+    "id": "30000000-0000-4000-8000-000000000001",
+    "run_id": "10000000-0000-4000-8000-000000000001",
+    "ticket_id": "20000000-0000-4000-8000-000000000002",
+    "agent_id": "30000000-0000-4000-8000-000000000002",
+    "worktree_id": null,
+    "status": "assigned",
+    "assigned_at": "2026-07-19T00:01:00.000Z",
+    "released_at": null
+  },
+  "intent": {
+    "schema_version": 1,
+    "id": "40000000-0000-4000-8000-000000000001",
+    "assignment_id": "30000000-0000-4000-8000-000000000001",
+    "version": 1,
+    "goal": "Exercise database repositories.",
+    "reads": [
+      {
+        "schema_version": 1,
+        "kind": "path",
+        "locator": "packages/persistence"
+      }
+    ],
+    "writes": [],
+    "assumptions": [],
+    "public_contract_changes": [],
+    "required_validations": ["database-integration"],
+    "declared_effects": [],
+    "created_at": "2026-07-19T00:02:00.000Z"
+  },
+  "transaction": {
+    "schema_version": 1,
+    "id": "50000000-0000-4000-8000-000000000001",
+    "run_id": "10000000-0000-4000-8000-000000000001",
+    "ticket_id": "20000000-0000-4000-8000-000000000002",
+    "assignment_id": "30000000-0000-4000-8000-000000000001",
+    "intent_contract_id": "40000000-0000-4000-8000-000000000001",
+    "intent_version": 1,
+    "base_commit_sha": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+    "prepared_patch_hash": null,
+    "status": "declared",
+    "created_at": "2026-07-19T00:03:00.000Z",
+    "updated_at": "2026-07-19T00:03:00.000Z",
+    "completed_at": null
+  }
+}
