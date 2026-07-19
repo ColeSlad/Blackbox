@@ -1,6 +1,6 @@
 # T0005 — Repository Registration and Git Adapter
 
-Status: Ready
+Status: Done
 Milestone: M1 — Transactional execution
 
 ## Outcome
@@ -290,7 +290,56 @@ removed explicitly.
 
 ## Readiness
 
-This Draft resolves the native-Git package boundary, repository identity,
-supported repository states, exact-SHA and branch semantics, patch isolation,
-and later-ticket ownership. Separate read-only validation and explicit human
-promotion remain mandatory before Ready.
+This specification resolved the native-Git package boundary, repository
+identity, supported repository states, exact-SHA and branch semantics, patch
+isolation, and later-ticket ownership. It received separate read-only validation
+and explicit human promotion to Ready before implementation began. Automated,
+independent-review, and human-verification gates remain mandatory before Done.
+
+## Completion Evidence
+
+Completed: 2026-07-19
+
+Accepted implementation:
+
+- Added a database-neutral `GitRepository` interface and native-Git adapter for
+  canonical registration of non-bare local working trees, including explicit
+  default-branch identity, exact commits, attached or detached HEAD state,
+  cleanliness, and deterministic changed-path metadata.
+- Added deterministic binary-capable patch generation from an exact base commit
+  through a temporary alternate index, with SHA-256 identity and no mutation of
+  the real index, HEAD, current branch, or working tree.
+- Added exact-commit branch-ref creation without checkout, controlled no-shell
+  subprocess execution, helper and filter refusal, bounded output, and stable
+  sanitized typed errors.
+- Kept repository registration in memory and added no persistence, worktree,
+  lifecycle, ledger, API, CLI workflow, remote-Git, or agent-execution behavior.
+
+Automated evidence:
+
+- Focused Git package tests: pass, 29 tests.
+- Aggregate unit tests: pass, 408 tests.
+- Required isolated-database integration tests: pass, 12 tests.
+- Built application-boundary smoke test: pass, 1 test.
+- Git package and workspace formatting, linting, type checking, production
+  builds, secret and generated-artifact inspection, and `git diff --check`:
+  pass.
+- Final verification audit: `PASS`, with no blocker.
+- Fresh independent ticket review: `APPROVE`, with no actionable correctness or
+  security defect.
+
+Manual evidence:
+
+- `.codex-runs/manual/T0005.md` records exactly one explicit
+  `Manual verification: Pass` result supplied by the human verifier after the
+  authoritative manual-verification checklist.
+
+Current limitations:
+
+- Registration remains an in-memory runtime value; T0007 owns server-bound
+  repository identity and isolated worktree lifecycle.
+- Native Git is supported on macOS and Linux only, and repositories requiring
+  unsupported helpers, filters, storage layouts, or path encodings are refused.
+- HEAD, index, and working-tree inspection is a best-effort snapshot under
+  concurrent external filesystem mutation; supported operations remain
+  non-mutating and helper-safe.

@@ -90,6 +90,8 @@ importers:
 
   packages/domain: {}
 
+  packages/git: {}
+
   packages/persistence:
     dependencies:
       '@blackbox/contracts':

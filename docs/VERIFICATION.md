@@ -189,6 +189,40 @@ For repository or worktree changes:
 - Verify cleanup refuses active or retained worktrees.
 - Confirm the canonical protected branch is unchanged during prepare and validation.
 
+The repository-registration and native-Git boundary has these focused commands:
+
+```sh
+pnpm --filter @blackbox/git test
+pnpm --filter @blackbox/git typecheck
+pnpm --filter @blackbox/git build
+```
+
+The focused suite creates real disposable SHA-1 and SHA-256 repositories. It
+asserts canonical registration through nested, symlinked, and space-containing
+paths; clean, dirty, staged, unstaged, deleted, renamed, untracked, ignored, and
+detached states; executable, symlink, and binary patch behavior; exact-SHA and
+ref refusal; deterministic patch bytes and SHA-256; `git apply --check` against
+a separate checkout; atomic branch collision safety; and unchanged HEAD, refs,
+index, worktree, and source object database. Adversarial cases cover bounded
+output, missing Git, unsupported platforms and path bytes, forged errors, and
+local, global, inherited, attribute, hook, filter, fsmonitor, external-diff,
+textconv, credential, and pager configuration. A helper marker must remain
+absent; any capability refusal is a failing assertion unless the expected typed
+refusal is the behavior under test.
+
+Operation-level regressions additionally modify clean/process filters and
+attributes after registration and require every public operation to refuse
+without executing the helper. A hostile `TMPDIR`, `TMP`, and `TEMP` rooted inside
+the working tree must be ignored; repeated patches remain byte-identical, child
+Git processes observe only a controlled external temp root, and the hostile
+directory remains empty. Commit-typed registration and head fields reject blob
+objects, and failure of absolute-path discovery is classified as unsupported Git
+rather than as a non-repository.
+
+Status regressions require `git add -N` entries to remain unstaged additions
+rather than becoming staged empty files, and require an unstaged rename
+destination absent from the real index to carry `untracked: true`.
+
 ## Command-runner verification
 
 For command-execution changes:
