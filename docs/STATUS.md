@@ -1,7 +1,7 @@
 # Repository Status
 
 Last updated: 2026-07-19
-Last validated commit: 3854511
+Last validated commit: a2298a4
 Current milestone: M1 — Transactional execution
 
 ## Completed capabilities
@@ -43,7 +43,8 @@ Current milestone: M1 — Transactional execution
 
 ## In progress
 
-- No product ticket is currently in progress.
+- T0006 — Run, Ticket, and Assignment Lifecycle is Ready and selected for the
+  next implementation run; implementation has not begun.
 
 ## Current limitations
 
@@ -231,10 +232,9 @@ These commands are not implemented and must not be documented as available elsew
 
 ## Next eligible ticket
 
-No ticket is currently Ready. T0006 — Run, Ticket, and Assignment Lifecycle
-remains Draft with its T0003 and T0004 dependencies Done; it requires separate
-validation and explicit human promotion before implementation. T0007 remains
-Draft and also depends on T0006.
+T0006 — Run, Ticket, and Assignment Lifecycle is Ready with its T0003 and T0004
+dependencies Done after separate read-only validation and explicit human
+promotion. T0007 remains Draft and also depends on T0006.
 
 ## Current milestone status
 

@@ -1,6 +1,6 @@
 # T0006 — Run, Ticket, and Assignment Lifecycle
 
-Status: Draft
+Status: Ready
 Milestone: M1 — Transactional execution
 
 ## Outcome
