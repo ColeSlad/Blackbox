@@ -1,8 +1,8 @@
 # Repository Status
 
 Last updated: 2026-07-18
-Last validated commit: d46eef2
-Current milestone: M0 — Project setup and architecture validation
+Last validated commit: 35601cf
+Current milestone: M0 — Foundation complete; M1 planning pending
 
 ## Completed capabilities
 
@@ -27,13 +27,17 @@ Current milestone: M0 — Project setup and architecture validation
 - Eleven strict version-one TypeBox contract families with safe parsers,
   stable errors, inspectable fixtures, and deterministic package-boundary
   enforcement.
+- A pinned PostgreSQL 17.10 local Compose service with health checking, a named
+  development volume, and CI parity.
+- An in-repository ordered SQL migrator with transactional application,
+  SHA-256 metadata, no-op status, and changed, missing, duplicate, ambiguous,
+  and future-version refusal.
+- Database-neutral create/read repositories and PostgreSQL adapters for runs,
+  tickets with dependencies, assignments, intent versions, and transactions.
 
 ## In progress
 
-- T0004 — PostgreSQL Persistence and Migrations is Ready and selected for the
-  next implementation run; implementation has not begun.
-- Docker Engine with Compose v2 is not installed on this host, so the T0004
-  writer must not start until that documented prerequisite is available.
+- No implementation ticket is in progress.
 
 ## Current limitations
 
@@ -46,8 +50,11 @@ Current milestone: M0 — Project setup and architecture validation
   edges only. They do not orchestrate runs, resolve resources, persist records,
   emit events, execute validations, detect conflicts, analyze causality, or
   evaluate guardrails.
-- No database schema, persistence layer, repository adapter, or Git behavior
-  exists.
+- No application service, server endpoint, CLI workflow, or worker job consumes
+  the persistence interfaces yet.
+- Persistence is local-development and CI infrastructure only; hosted database
+  configuration, production migration operations, backups, and down migrations
+  are not provided.
 - The product Codex subprocess adapter has not been implemented or validated.
 - Filesystem-read instrumentation remains an open technical decision.
 - Causal diagnosis metrics currently have definitions but no benchmark implementation.
@@ -59,6 +66,14 @@ Current milestone: M0 — Project setup and architecture validation
 - Runtime packages are Fastify 5.10.0, React 19.2.7, and React DOM 19.2.7.
 - `packages/contracts` uses exactly `typebox@1.3.6`; registry metadata reports
   MIT licensing and no runtime, peer, or optional dependencies.
+- `packages/persistence` uses exactly `postgres@3.4.9`; registry metadata reports
+  Unlicense, publication on 2026-04-05, Node ESM compatibility, and no client
+  runtime transitive dependencies. The repository advisory audit reports zero
+  known npm vulnerabilities across 299 dependencies.
+- Local and CI PostgreSQL use the Docker Official Image tag
+  `postgres:17.10-alpine3.24` at immutable digest
+  `sha256:742f40ea20b9ff2ff31db5458d127452988a2164df9e17441e191f3b72252193`.
+  PostgreSQL 17.10 is supported through 2029-11-08.
 - The committed lockfile pins the approved TypeScript, Vite, Vitest, ESLint,
   Prettier, TSX, and type-definition toolchain.
 
@@ -68,6 +83,13 @@ Current milestone: M0 — Project setup and architecture validation
 - `pnpm dev:server`
 - `pnpm dev:worker`
 - `pnpm dev:web`
+- `pnpm db:up`
+- `pnpm db:down`
+- `pnpm db:migrate`
+- `pnpm db:status`
+- `pnpm db:reset:dev -- --confirm-reset`
+- `pnpm db:smoke`
+- `pnpm test:database`
 - `pnpm exec blackbox --version` after building
 - `pnpm format:check`
 - `pnpm lint`
@@ -131,7 +153,32 @@ These commands are not implemented and must not be documented as available elsew
   with no unresolved blocker
 - T0003 manual verification: pass, recorded exactly once in
   `.codex-runs/manual/T0003.md`
-- Database migrations: not available
+- T0004 Compose configuration and health check: pass with PostgreSQL 17.10 on
+  `127.0.0.1:55432`
+- T0004 migration, current-status, repeated no-op, smoke, guarded reset, 32
+  focused unit tests, and 12 required isolated-database integration tests: pass
+- T0004 pinned-image scan: Trivy 0.72.0 with its database updated
+  2026-07-18T18:43:59Z reported zero Alpine 3.24.1 OS-package findings and 39
+  fixed-version metadata findings in the Go-built `gosu` 1.19 binary: 1
+  unknown, 2 low, 21 medium, 14 high, and 1 critical. Govulncheck 1.6.0 with
+  the official Go database last modified 2026-07-08 concluded that the exact
+  extracted binary is affected by zero vulnerabilities; it also found 3
+  vulnerabilities in imported packages and 35 in required modules, but no
+  vulnerable calls. All 15 Trivy high/critical CVEs mapped to Go vulnerability
+  records with no vulnerable symbol present or reachable; one high finding was
+  package-level in `os`, still without a vulnerable symbol.
+- T0004 aggregate `pnpm verify`: pass under Node.js 24.18.0 with formatting,
+  lint, all workspace type checks, 379 unit tests, 12 required isolated-database
+  tests, all production builds, and built-boundary integration smoke coverage.
+- T0004 operational, unavailable-database, guarded-reset, remote-host-refusal,
+  output-redaction, scope, secret, artifact, and diff checks: pass.
+- T0004 dependency audit: zero known npm vulnerabilities across 299
+  dependencies.
+- T0004 final verification audit: `GO`; initial review blockers were repaired
+  by the same sole worker, and the fresh repair review returned `APPROVE` with no
+  unresolved blocker.
+- T0004 manual verification: pass, recorded exactly once in
+  `.codex-runs/manual/T0004.md`.
 - Browser tests: not available
 - Demo scenario: not available
 - Codex CLI integration: not validated
@@ -141,23 +188,31 @@ These commands are not implemented and must not be documented as available elsew
 - pnpm reports that the transitive esbuild lifecycle script is blocked during
   install; installation, tests, development startup, and production builds pass
   without approving that script.
+- The pinned image has nonzero scanner metadata findings in its `gosu` binary.
+  Current symbol-level analysis found no applicable reachable high/critical
+  vulnerable symbol, but this is not a zero-vulnerability result, does not
+  clear future advisories, and must be repeated when the image, scanner, or
+  vulnerability databases change.
 - The first release must avoid claiming deterministic model replay.
 - The architecture depends on an append-only event ledger; schema discipline must be established before feature work.
 - The MVP conflict engine needs an explicit list of hard-blocking versus advisory detectors.
 
 ## Next eligible ticket
 
-T0004 — PostgreSQL Persistence and Migrations is the selected Ready ticket, and
-its T0002 and T0003 dependencies are Done. Implementation must wait until Docker
-Engine with Compose v2 is installed and usable on the execution host.
+No ticket is Ready. T0005 — Repository Registration and Git Adapter is the next
+dependency-eligible Draft, but it requires a separate read-only validation run
+and explicit human promotion before implementation.
 
-## Current milestone exit criteria
+## Current milestone status
 
-M0 is complete when:
+M0 — Foundation is complete:
 
 - T0001 through T0004 are Done.
-- A clean checkout can start the application and database with documented commands.
-- Formatting, lint, type checking, tests, and production build run locally and in CI.
-- Core domain types for runs, tickets, assignments, intents, transactions, and ledger events exist with schema tests.
+- A clean checkout can start the application and database with documented
+  commands.
+- Formatting, linting, type checking, tests, and production builds run locally
+  and in CI.
+- Core domain types for runs, tickets, assignments, intents, transactions, and
+  ledger events exist with schema tests.
 - Accepted architecture decisions document the selected stack and Codex
   integration approach.

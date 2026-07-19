@@ -771,6 +771,29 @@ Migration rules:
 - Destructive changes require an explicit data migration or documented reset policy before production use.
 - Every persisted payload containing an extensible object includes a schema version.
 
+The initial persistence boundary uses PostgreSQL 17 and exactly
+`postgres@3.4.9` (Postgres.js). Database-neutral repository interfaces and the
+PostgreSQL adapters are separated within `packages/persistence`; domain code
+does not import either boundary. Adapter queries use the client's parameterized
+tagged templates. Raw SQL execution is confined to validated, repository-owned
+migration bytes.
+
+The in-repository migrator applies ordered SQL files transactionally, hashes
+their exact bytes with SHA-256, and records the identifier, file name, checksum,
+and application timestamp. It refuses duplicate or ambiguous identifiers,
+changed checksums, missing applied files, and database versions newer than the
+repository understands. Migrations are forward-only and never rewrite an
+applied file.
+
+The foundation schema stores runs, tickets, same-run ticket dependencies,
+assignments, versioned intents, and transactions. Identifiers are
+application-generated UUIDs; timestamps use `timestamptz`; status constraints
+match the version-one domain vocabularies. Structured intent fields use JSONB
+only where the contract is extensible and retain the owning record's explicit
+schema version. Initial repositories provide create and read behavior only;
+lifecycle mutation, outbox publication, ledger ingestion, queues, and product
+endpoints remain later-ticket responsibilities.
+
 ### Git repository and worktrees
 
 Stores:

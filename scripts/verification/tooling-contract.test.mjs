@@ -21,9 +21,11 @@ describe("verification tooling contract", () => {
     );
     expect(packageMetadata.packageManager).toBe("pnpm@10.31.0");
     expect(packageMetadata.scripts.test).toBe("pnpm run test:unit");
-    expect(packageMetadata.scripts["test:unit"]).toBe("vitest run");
+    expect(packageMetadata.scripts["test:unit"]).toBe(
+      "vitest run --exclude '**/*.database.test.ts'",
+    );
     expect(packageMetadata.scripts["test:integration"]).toBe(
-      "node --test scripts/verification/integration-smoke.mjs",
+      "pnpm test:database && node --test scripts/verification/integration-smoke.mjs",
     );
   });
 
@@ -59,6 +61,8 @@ describe("verification tooling contract", () => {
     expect(workflow).toContain("run: corepack enable");
     expect(workflow).toContain("pnpm install --frozen-lockfile");
     expect(workflow.match(/pnpm verify/g)).toHaveLength(1);
+    expect(workflow).toContain("services:\n      postgres:");
+    expect(workflow).toContain("postgres:17.10-alpine3.24@sha256:");
     expect(workflow).not.toMatch(/continue-on-error|secrets\.|codex/i);
   });
 });

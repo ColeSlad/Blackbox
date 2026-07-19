@@ -13,6 +13,23 @@ permissions:
 jobs:
   verify:
     runs-on: ubuntu-latest
+    env:
+      BLACKBOX_DATABASE_URL: postgres://blackbox:blackbox@127.0.0.1:5432/blackbox
+    services:
+      postgres:
+        # Docker Official Image: postgres:17.10-alpine3.24
+        image: postgres:17.10-alpine3.24@sha256:742f40ea20b9ff2ff31db5458d127452988a2164df9e17441e191f3b72252193
+        env:
+          POSTGRES_DB: blackbox
+          POSTGRES_PASSWORD: blackbox
+          POSTGRES_USER: blackbox
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U blackbox -d blackbox"
+          --health-interval 2s
+          --health-timeout 5s
+          --health-retries 15
     steps:
       - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
         with:

@@ -1,6 +1,6 @@
 # T0004 — PostgreSQL Persistence and Migrations
 
-Status: Ready
+Status: Done
 Milestone: M0 — Foundation
 
 ## Outcome
@@ -359,3 +359,65 @@ package boundary, and rollback policy are resolved. Factual version, digest,
 license, maintenance, and advisory checks remain mandatory validation evidence,
 not open design decisions. Separate `plan_validator` review and explicit human
 promotion are still required before Ready.
+
+## Completion Evidence
+
+Completed: 2026-07-18
+
+Accepted implementation:
+
+- Added a PostgreSQL 17.10 local Compose service with an immutable image digest,
+  health checking, a named development volume, loopback-only defaults, and CI
+  parity.
+- Added an in-repository ordered SQL migrator with transactional application,
+  SHA-256 metadata, current and no-op reporting, and safe refusal of changed,
+  missing, duplicate, ambiguous, and future migration states.
+- Added database-neutral create and read repository interfaces plus PostgreSQL
+  adapters for runs, tickets with dependencies, assignments, intent versions,
+  and transactions.
+- Added guarded migration, status, smoke, and local-development reset commands,
+  required database integration coverage, and factual persistence documentation
+  without adding product workflow, ledger, outbox, or queue behavior.
+
+Automated evidence:
+
+- Verification environment: Node.js `v24.18.0` and pnpm `10.31.0`.
+- Compose configuration and health checking: pass with PostgreSQL `17.10` on
+  `127.0.0.1:55432`.
+- Migration, current-status, repeated no-op, smoke, guarded-reset, unavailable-
+  database, remote-host-refusal, and output-redaction checks: pass.
+- Persistence unit tests: pass with 32 focused tests.
+- Required isolated-database integration tests: pass with 12 tests covering
+  migration states, constraints, aggregate round trips, and sanitized failures.
+- `pnpm verify`: pass with 379 unit tests, 12 required database tests, all
+  workspace type checks and builds, and built-boundary integration smoke
+  coverage.
+- Formatting, linting, repository type checking, compatibility tests,
+  production builds, scope checks, secret and artifact checks, and
+  `git diff --check`: pass.
+- Dependency audit: zero known npm vulnerabilities across 299 dependencies.
+- Exact-image Trivy 0.72.0 scanning reported zero Alpine OS-package findings
+  and 39 fixed-version metadata findings in the Go-built `gosu` binary;
+  Govulncheck 1.6.0 found zero affected vulnerabilities and no vulnerable calls
+  in the extracted binary. This evidence is not a zero-metadata-finding claim.
+- Final verification audit: `GO`.
+- The first independent review blockers were repaired by the same sole ticket
+  worker; the fresh repair review returned `APPROVE` with no unresolved blocker.
+
+Manual evidence:
+
+- `.codex-runs/manual/T0004.md` records exactly one unambiguous
+  `Manual verification: Pass` result.
+- The human verifier completed the ticket's manual-verification checklist.
+
+Current limitations:
+
+- Persistence remains local-development and CI infrastructure only; hosted
+  database configuration, production migration operations, backups, and down
+  migrations are not provided.
+- No application service, product endpoint, CLI workflow, or worker job consumes
+  the persistence interfaces yet.
+- The pinned image retains nonzero scanner metadata findings in `gosu`; the
+  current symbol-level analysis found no affected vulnerability or vulnerable
+  call, and the analysis must be repeated when the image or vulnerability data
+  changes.

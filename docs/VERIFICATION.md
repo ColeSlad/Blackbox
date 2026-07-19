@@ -9,9 +9,11 @@ A check that did not run is not a passing check.
 ## Canonical pre-merge verification
 
 Use Node.js `24.18.0`, enable Corepack, and install the root-pinned pnpm
-`10.31.0` dependency graph from the committed lockfile. Then run:
+`10.31.0` dependency graph from the committed lockfile. Start the pinned local
+PostgreSQL 17 service, then run:
 
 ```sh
+pnpm db:up
 pnpm verify
 ```
 
@@ -19,7 +21,9 @@ The repository-owned verification runner invokes these commands directly and
 in order: `format:check`, `lint`, `typecheck`, `test:unit`, `build`, and
 `test:integration`. It stops after the first unsuccessful gate and preserves
 that gate's output and exit status. GitHub Actions invokes the same aggregate
-command after a frozen-lockfile install.
+command after a frozen-lockfile install and after its PostgreSQL 17 service is
+healthy. The integration gate requires `pnpm test:database`; unavailable
+PostgreSQL is a failure and is never skipped.
 
 `pnpm test` remains an alias for the unit-test command. When run outside the
 aggregate flow, `pnpm test:integration` expects `pnpm build` to have produced
@@ -125,6 +129,51 @@ For migration changes:
 - Test constraints and indexes through behavior, not only schema snapshots.
 - Confirm destructive changes have an approved migration or reset policy.
 - Confirm rollback expectations are documented; do not assume every migration is reversible.
+
+The persistence foundation uses these focused commands:
+
+```sh
+pnpm db:migrate
+pnpm db:status
+pnpm db:smoke
+pnpm test:database
+```
+
+Database integration tests create and remove unique databases on the local
+PostgreSQL service. They cover empty-to-latest and previous-to-latest migration,
+repeated no-op execution, changed checksums, missing files, future versions,
+foreign keys, uniqueness, same-run dependencies, self-dependencies, schema
+versions, sanitized failures, and one create/read round trip per initial
+aggregate. The smoke command must remain local-only and print no connection
+string, credential, or record payload.
+
+Development reset verification must prove both refusal and success paths:
+
+```sh
+pnpm db:reset:dev
+BLACKBOX_DATABASE_URL=postgres://user:password@db.example/blackbox \
+  pnpm db:reset:dev -- --confirm-reset
+pnpm db:reset:dev -- --confirm-reset
+```
+
+The first two commands must fail safely. The confirmed local reset must migrate
+cleanly afterward. Removing the named Compose volume is a separate deliberate
+manual action, never an automatic migration or verification step.
+
+The T0004 image evaluation used Trivy 0.72.0 against the exact pinned image with
+a vulnerability database updated 2026-07-18T18:43:59Z. It reported zero Alpine
+3.24.1 OS-package findings and 39 fixed-version metadata findings in the
+Go-built `gosu` 1.19 binary: 1 unknown, 2 low, 21 medium, 14 high, and 1
+critical. Govulncheck 1.6.0 then analyzed the extracted exact binary with the
+official Go vulnerability database last modified 2026-07-08 and concluded that
+the binary is affected by zero vulnerabilities. It also found 3
+vulnerabilities in imported packages and 35 in required modules, but no
+vulnerable calls. All 15 Trivy high/critical CVEs mapped to Go vulnerability
+records without a vulnerable symbol present or reachable; one high finding was
+package-level in `os`, still with no vulnerable symbol. This is nonzero scanner
+evidence, not a zero-vulnerability image claim or a guarantee about future
+advisory data. Repeat both scans whenever the image or advisory databases
+change.
 
 ## Git and worktree verification
 
