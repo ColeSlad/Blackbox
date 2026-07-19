@@ -1,8 +1,8 @@
 # Repository Status
 
 Last updated: 2026-07-18
-Last validated commit: 35601cf
-Current milestone: M0 — Foundation complete; M1 planning pending
+Last validated commit: 3854511
+Current milestone: M1 — Transactional execution
 
 ## Completed capabilities
 
@@ -37,7 +37,8 @@ Current milestone: M0 — Foundation complete; M1 planning pending
 
 ## In progress
 
-- No implementation ticket is in progress.
+- T0005 — Repository Registration and Git Adapter is Ready and selected for the
+  next implementation run; implementation has not begun.
 
 ## Current limitations
 
@@ -199,9 +200,8 @@ These commands are not implemented and must not be documented as available elsew
 
 ## Next eligible ticket
 
-No ticket is Ready. T0005 — Repository Registration and Git Adapter is the next
-dependency-eligible Draft, but it requires a separate read-only validation run
-and explicit human promotion before implementation.
+T0005 — Repository Registration and Git Adapter is the selected Ready ticket,
+and its T0003 dependency is Done.
 
 ## Current milestone status
 
