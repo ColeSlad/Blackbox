@@ -40,15 +40,25 @@ Current milestone: M1 — Transactional execution
 - Helper-safe native-Git operations for deterministic binary-capable patches
   from exact commits and collision-safe branch-ref creation without changing
   the checked-out branch, index, or working tree.
+- A framework-independent lifecycle application service with atomic run-graph
+  creation, deterministic inspection, run start, dependency-aware ticket
+  readiness, one future-writer reservation, and ticket/run terminal cascades.
+- A database-neutral lifecycle unit-of-work boundary and PostgreSQL adapter,
+  migration `0003` graph/ownership constraints, and immutable version-one
+  per-aggregate lifecycle outbox records.
+- Local bearer-authenticated version-one lifecycle routes with stable sanitized
+  errors while `GET /version` remains public.
 
 ## In progress
 
-- T0006 — Run, Ticket, and Assignment Lifecycle is Ready and selected for the
-  next implementation run; implementation has not begun.
+- No product ticket is currently in progress.
+- T0007 — Isolated Worktree Manager is dependency-eligible but remains Draft
+  pending separate validation and explicit human promotion.
 
 ## Current limitations
 
-- The server exposes only the version endpoint; no product API exists.
+- The server exposes the local authenticated T0006 lifecycle API but no hosted,
+  remote, role-based, browser-session, or CLI product workflow.
 - The CLI implements only `blackbox --version`.
 - The web application is a minimal shell with no product workflow or API
   integration.
@@ -57,11 +67,16 @@ Current milestone: M1 — Transactional execution
   edges only. They do not orchestrate runs, resolve resources, persist records,
   emit events, execute validations, detect conflicts, analyze causality, or
   evaluate guardrails.
-- No application service, server endpoint, CLI workflow, or worker job consumes
-  the persistence interfaces yet.
+- No CLI workflow or worker job consumes the lifecycle service yet.
 - Repository registration is an in-memory inspectable runtime value only. T0006
   owns run, ticket, and assignment reservation lifecycle; T0007 owns the
   server-bound repository binding and isolated worktree lifecycle.
+- T0006 creates reservation-only assignments. Ticket start, active assignments,
+  ticket completion, and run completion remain unavailable until T0007 and
+  T0013 satisfy their worktree and verification-evidence gates.
+- Lifecycle outbox records are pending immutable domain-delivery records only;
+  publishing, consumption, producer sequences, hashing, and the execution
+  ledger remain T0009 work.
 - Persistence is local-development and CI infrastructure only; hosted database
   configuration, production migration operations, backups, and down migrations
   are not provided.
@@ -116,6 +131,7 @@ Current milestone: M1 — Transactional execution
 - `pnpm --filter @blackbox/domain test`
 - `pnpm --filter @blackbox/contracts test`
 - `pnpm --filter @blackbox/git test`
+- `pnpm --filter @blackbox/application test`
 
 Planned product command surface:
 
@@ -212,6 +228,23 @@ These commands are not implemented and must not be documented as available elsew
   `APPROVE`, with no actionable correctness or security defect.
 - T0005 manual verification: pass, recorded exactly once in
   `.codex-runs/manual/T0005.md`.
+- T0006 focused application tests: pass, 20 tests covering graph validation,
+  lifecycle orchestration, every supported edge, locale-independent ordering,
+  exact outbox records, late-failure rollback, and static boundaries.
+- T0006 focused persistence tests: pass, 32 tests covering database-neutral
+  lifecycle boundaries, PostgreSQL adapter behavior, and migration integration.
+- T0006 server injection tests: pass, 15 tests covering authentication, public
+  version behavior, route composition, safe errors, and deferred execution.
+- T0006 isolated database tests: pass, 25 tests across persistence migration and
+  lifecycle graph, consistent inspect/cascade concurrency, constraints,
+  update/delete/truncate outbox immutability, and late-failure rollback.
+- T0006 aggregate `pnpm verify`: pass with formatting, lint, all workspace type
+  checks, 442 unit tests, all production builds, 25 isolated database tests, and
+  built-boundary integration smoke coverage.
+- T0006 final verification audit: `PASS`; fresh independent ticket review:
+  `APPROVE`, with no actionable correctness or security finding.
+- T0006 manual verification: pass, recorded explicitly in
+  `.codex-runs/manual/T0006.md`.
 - Browser tests: not available
 - Demo scenario: not available
 - Codex CLI integration: not validated
@@ -232,9 +265,9 @@ These commands are not implemented and must not be documented as available elsew
 
 ## Next eligible ticket
 
-T0006 — Run, Ticket, and Assignment Lifecycle is Ready with its T0003 and T0004
-dependencies Done after separate read-only validation and explicit human
-promotion. T0007 remains Draft and also depends on T0006.
+T0007 is dependency-eligible now that T0005 and T0006 are Done, but remains
+Draft and requires separate validation and explicit human promotion before
+implementation.
 
 ## Current milestone status
 

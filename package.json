@@ -25,7 +25,7 @@
     "typecheck": "pnpm -r --if-present typecheck",
     "test": "pnpm run test:unit",
     "test:unit": "vitest run --exclude '**/*.database.test.ts'",
-    "test:database": "pnpm --filter @blackbox/persistence test:database",
+    "test:database": "pnpm --filter @blackbox/persistence test:database && pnpm --filter @blackbox/application test:database",
     "test:integration": "pnpm test:database && node --test scripts/verification/integration-smoke.mjs",
     "build": "pnpm -r --if-present build",
     "verify": "node scripts/verification/run-verification.mjs"

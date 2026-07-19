@@ -106,6 +106,7 @@ describe("required PostgreSQL migration integration", () => {
         await expect(migrateDatabase(persistence.sql)).resolves.toEqual([
           "0001",
           "0002",
+          "0003",
         ]);
         const tables = await persistence.sql`
           SELECT table_name
@@ -116,6 +117,7 @@ describe("required PostgreSQL migration integration", () => {
         expect(tables.map(({ table_name }) => table_name)).toEqual([
           "assignments",
           "intents",
+          "lifecycle_outbox",
           "runs",
           "schema_migrations",
           "ticket_dependencies",
@@ -149,7 +151,44 @@ describe("required PostgreSQL migration integration", () => {
         });
         await expect(migrateDatabase(persistence.sql)).resolves.toEqual([
           "0002",
+          "0003",
         ]);
+      } finally {
+        await persistence.close();
+      }
+    });
+  });
+
+  it("upgrades a database at migration 0002 to latest", async () => {
+    await withTestDatabase(async (url) => {
+      const persistence = await createPostgresPersistence(url);
+      try {
+        const migrations = (await readMigrationFiles()).slice(0, 2);
+        expect(migrations.map((migration) => migration.identifier)).toEqual([
+          "0001",
+          "0002",
+        ]);
+        for (const migration of migrations) {
+          await persistence.sql.begin(async (transaction) => {
+            await transaction.unsafe(migration.sql);
+            await transaction`
+              INSERT INTO schema_migrations (identifier, file_name, checksum)
+              VALUES (
+                ${migration.identifier}, ${migration.fileName},
+                ${migration.checksum}
+              )
+            `;
+          });
+        }
+        await expect(migrateDatabase(persistence.sql)).resolves.toEqual([
+          "0003",
+        ]);
+        const tables = await persistence.sql`
+          SELECT table_name
+          FROM information_schema.tables
+          WHERE table_schema = 'public' AND table_name = 'lifecycle_outbox'
+        `;
+        expect(tables).toHaveLength(1);
       } finally {
         await persistence.close();
       }
@@ -252,7 +291,10 @@ describe("required PostgreSQL migration integration", () => {
         const records = await persistence.sql`
           SELECT identifier FROM schema_migrations ORDER BY identifier
         `;
-        expect(records.map(({ identifier }) => identifier)).toEqual(["0002"]);
+        expect(records.map(({ identifier }) => identifier)).toEqual([
+          "0002",
+          "0003",
+        ]);
       } finally {
         await persistence.close();
       }

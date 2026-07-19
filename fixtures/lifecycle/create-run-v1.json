@@ -1,0 +1,26 @@
+{
+  "repository_id": "10000000-0000-4000-8000-000000000001",
+  "title": "Add an authenticated lifecycle",
+  "base_commit_sha": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+  "configuration_version": 1,
+  "tickets": [
+    {
+      "external_key": "root",
+      "title": "Create the root capability",
+      "description": "Implement and verify the dependency root.",
+      "dependencies": [],
+      "acceptance_criteria": ["The root capability passes verification."],
+      "manual_verification_steps": ["Inspect the root capability."]
+    },
+    {
+      "external_key": "dependent",
+      "title": "Create the dependent capability",
+      "description": "Implement the capability after its dependency is done.",
+      "dependencies": ["root"],
+      "acceptance_criteria": [
+        "The dependent capability remains gated by the root."
+      ],
+      "manual_verification_steps": ["Inspect dependency gating."]
+    }
+  ]
+}

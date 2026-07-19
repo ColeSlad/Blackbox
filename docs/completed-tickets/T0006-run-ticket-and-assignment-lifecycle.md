@@ -1,6 +1,6 @@
 # T0006 — Run, Ticket, and Assignment Lifecycle
 
-Status: Ready
+Status: Done
 Milestone: M1 — Transactional execution
 
 ## Outcome
@@ -312,7 +312,58 @@ automatically reversing the migration.
 
 ## Readiness
 
-This Draft resolves graph creation, lifecycle orchestration, assignment
+This specification resolved graph creation, lifecycle orchestration, assignment
 exclusivity, authentication, atomic persistence, and outbox ownership while
-preserving later-ticket boundaries. Separate read-only validation and explicit
-human promotion remain mandatory before Ready.
+preserving later-ticket boundaries. It received separate read-only validation
+and explicit human promotion to Ready before implementation began. Automated,
+independent-review, and human-verification gates remained mandatory before
+Done.
+
+## Completion Evidence
+
+Completed: 2026-07-19
+
+Accepted implementation:
+
+- Added a framework-independent lifecycle application service for atomic run
+  graph creation, deterministic inspection, run start, dependency-aware ticket
+  readiness, reservation-only assignments, and documented ticket/run terminal
+  cascades.
+- Added database-neutral lifecycle transaction boundaries, PostgreSQL graph and
+  lifecycle adapters, migration `0003`, concurrency enforcement, and immutable
+  version-one per-aggregate lifecycle outbox records.
+- Added locally bearer-authenticated version-one lifecycle routes with stable
+  sanitized errors while preserving public `GET /version` behavior.
+- Kept ticket start, active assignments, ticket completion, run completion,
+  worktrees, intent acceptance, ledger ingestion, queue execution, validation,
+  and agent execution outside T0006.
+
+Automated evidence:
+
+- Focused application tests: pass, 20 tests.
+- Focused persistence tests: pass, 32 tests.
+- Server injection tests: pass, 15 tests.
+- Isolated database tests: pass, 25 tests.
+- Aggregate `pnpm verify`: pass with formatting, lint, all workspace type
+  checks, 442 unit tests, production builds, 25 database tests, and integration
+  smoke coverage.
+- `git diff --check`, migration immutability, generated-artifact, credential,
+  scope, and locale-sensitive-order checks: pass.
+- Final verification audit: `PASS`, with no blocker.
+- Fresh independent ticket review: `APPROVE`, with no actionable correctness or
+  security finding.
+
+Manual evidence:
+
+- `.codex-runs/manual/T0006.md` records the explicit
+  `Manual verification: Pass` result supplied by the human verifier after the
+  authoritative manual-verification checklist.
+
+Current limitations:
+
+- Assignments remain non-executing reservations. T0007 owns active clean
+  exact-base worktrees, ticket start, and assignment activation.
+- Ticket completion and run completion remain unavailable until T0013 provides
+  persisted passing verification evidence.
+- Outbox records remain pending domain-delivery records; T0009 owns publishing,
+  execution-ledger envelopes, sequencing, and hashing.

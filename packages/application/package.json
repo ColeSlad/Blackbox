@@ -1,0 +1,24 @@
+{
+  "name": "@blackbox/application",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "exports": {
+    ".": {
+      "types": "./src/index.ts",
+      "development": "./src/index.ts",
+      "default": "./dist/index.js"
+    }
+  },
+  "scripts": {
+    "typecheck": "tsc --noEmit -p tsconfig.json",
+    "test": "vitest run src --exclude '**/*.database.test.ts'",
+    "test:database": "vitest run src/lifecycle.database.test.ts --maxWorkers=1",
+    "build": "tsc -p tsconfig.build.json"
+  },
+  "dependencies": {
+    "@blackbox/contracts": "workspace:*",
+    "@blackbox/domain": "workspace:*",
+    "@blackbox/persistence": "workspace:*"
+  }
+}

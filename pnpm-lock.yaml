@@ -45,6 +45,12 @@ importers:
 
   apps/server:
     dependencies:
+      '@blackbox/application':
+        specifier: workspace:*
+        version: link:../../packages/application
+      '@blackbox/persistence':
+        specifier: workspace:*
+        version: link:../../packages/persistence
       fastify:
         specifier: 5.10.0
         version: 5.10.0
@@ -74,6 +80,18 @@ importers:
   apps/worker: {}
 
   fixtures: {}
+
+  packages/application:
+    dependencies:
+      '@blackbox/contracts':
+        specifier: workspace:*
+        version: link:../contracts
+      '@blackbox/domain':
+        specifier: workspace:*
+        version: link:../domain
+      '@blackbox/persistence':
+        specifier: workspace:*
+        version: link:../persistence
 
   packages/cli: {}
 

@@ -11,6 +11,8 @@
     "build": "tsc -p tsconfig.build.json"
   },
   "dependencies": {
+    "@blackbox/application": "workspace:*",
+    "@blackbox/persistence": "workspace:*",
     "fastify": "5.10.0"
   }
 }

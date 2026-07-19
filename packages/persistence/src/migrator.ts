@@ -37,6 +37,10 @@ export interface MigrationStatus {
   readonly pending: readonly Pick<MigrationFile, "identifier" | "fileName">[];
 }
 
+function compareStrings(left: string, right: string): number {
+  return left < right ? -1 : left > right ? 1 : 0;
+}
+
 export async function readMigrationFiles(
   directory: URL | string = DEFAULT_MIGRATION_DIRECTORY,
 ): Promise<MigrationFile[]> {
@@ -83,7 +87,7 @@ export async function readMigrationFiles(
   }
 
   migrations.sort((left, right) =>
-    left.identifier.localeCompare(right.identifier),
+    compareStrings(left.identifier, right.identifier),
   );
   if (migrations.length === 0 || migrations[0]?.identifier !== "0001") {
     throw migrationError(PERSISTENCE_ERROR_CODES.MIGRATION_INVALID);
