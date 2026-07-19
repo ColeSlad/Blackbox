@@ -805,6 +805,38 @@ Stores:
 
 A run records the base commit SHA. Prepared patches are content-addressed and retained according to run-retention settings.
 
+`packages/git` owns the database-neutral `GitRepository` boundary for non-bare
+local working trees. Repository registration canonicalizes both the working-tree
+root and common Git directory, requires an explicit validated local default
+branch, and records exact commit identities without inventing a repository UUID.
+It uses native Git porcelain and plumbing only through argument-array subprocess
+calls with `shell: false`; child environments are rebuilt from an allowlist,
+inherited `GIT_*` routing is discarded, global and system configuration is
+isolated, terminal interaction is disabled, and captured output is bounded.
+Repository-configured external diff, text-conversion, filter, fsmonitor, hook,
+credential, and pager helpers must either be neutralized by the operation or
+cause explicit repository refusal before execution. The unsupported-state check
+runs at every public operation boundary; correctness does not rely on the
+registration-time result remaining current. Caller temp variables are discarded,
+and adapter scratch roots are canonical, controlled, and outside both the
+working-tree root and common Git directory.
+
+The adapter requires a successful porcelain-v2 NUL capability probe in a
+disposable repository, then exposes exact head lookup and deterministic changed
+paths without invoking target-repository status porcelain. Status compares HEAD,
+an object-only copy of real-index entries, and a no-filter filesystem snapshot
+through temporary indexes while preserving native intent-to-add semantics and
+classifying final paths absent from the real index as untracked. Patch creation
+constructs the same filesystem
+snapshot in a temporary alternate index and object directory, then emits a
+full-index binary patch against an exact commit. Atomic branch creation writes
+one validated ref at an exact commit. These operations do not mutate the real
+index, working tree, object database, HEAD, current branch, or default branch.
+Patch application, staging/integration branches, persistence, repository
+lifecycle, and worktree creation or cleanup remain outside this boundary. T0006
+owns run/ticket/assignment reservation lifecycle, while T0007 owns the
+server-bound repository binding and isolated worktree lifecycle.
+
 ### Artifact store
 
 The MVP may use the local filesystem behind an `ArtifactStore` interface.

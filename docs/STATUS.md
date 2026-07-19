@@ -1,6 +1,6 @@
 # Repository Status
 
-Last updated: 2026-07-18
+Last updated: 2026-07-19
 Last validated commit: 3854511
 Current milestone: M1 — Transactional execution
 
@@ -34,11 +34,16 @@ Current milestone: M1 — Transactional execution
   and future-version refusal.
 - Database-neutral create/read repositories and PostgreSQL adapters for runs,
   tickets with dependencies, assignments, intent versions, and transactions.
+- A database-neutral `GitRepository` boundary for canonical non-bare local
+  repository registration, exact HEAD/default-branch inspection, and
+  deterministic changed-path status.
+- Helper-safe native-Git operations for deterministic binary-capable patches
+  from exact commits and collision-safe branch-ref creation without changing
+  the checked-out branch, index, or working tree.
 
 ## In progress
 
-- T0005 — Repository Registration and Git Adapter is Ready and selected for the
-  next implementation run; implementation has not begun.
+- No product ticket is currently in progress.
 
 ## Current limitations
 
@@ -53,10 +58,17 @@ Current milestone: M1 — Transactional execution
   evaluate guardrails.
 - No application service, server endpoint, CLI workflow, or worker job consumes
   the persistence interfaces yet.
+- Repository registration is an in-memory inspectable runtime value only. T0006
+  owns run, ticket, and assignment reservation lifecycle; T0007 owns the
+  server-bound repository binding and isolated worktree lifecycle.
 - Persistence is local-development and CI infrastructure only; hosted database
   configuration, production migration operations, backups, and down migrations
   are not provided.
 - The product Codex subprocess adapter has not been implemented or validated.
+- The Git adapter supports native Git on macOS and Linux only and refuses bare,
+  unborn, sparse, partial-clone, alternate-object, grafted, gitlink-containing,
+  and clean/process-filter repositories. It does not persist registrations,
+  parse configuration, create worktrees, apply patches, or access remotes.
 - Filesystem-read instrumentation remains an open technical decision.
 - Causal diagnosis metrics currently have definitions but no benchmark implementation.
 - The MVP is limited to local Git repositories and coding-agent effects.
@@ -102,6 +114,7 @@ Current milestone: M1 — Transactional execution
 - `pnpm verify`
 - `pnpm --filter @blackbox/domain test`
 - `pnpm --filter @blackbox/contracts test`
+- `pnpm --filter @blackbox/git test`
 
 Planned product command surface:
 
@@ -180,6 +193,24 @@ These commands are not implemented and must not be documented as available elsew
   unresolved blocker.
 - T0004 manual verification: pass, recorded exactly once in
   `.codex-runs/manual/T0004.md`.
+- T0005 focused Git package tests: pass, 29 tests covering SHA-1/SHA-256
+  registration, canonical paths, status, deterministic binary patches, exact
+  branch refs, helper defenses, sanitized typed errors, capability refusal, and
+  static package boundaries. Fresh-review regressions cover post-registration
+  filter refusal, controlled scratch roots under hostile temp variables,
+  commit-typed HEAD/default refs, and unsupported absolute-path discovery.
+  Status regressions preserve native intent-to-add classification and mark
+  unstaged rename destinations absent from the real index as untracked.
+- T0005 focused type check and production build: pass.
+- T0005 aggregate `pnpm verify`: pass under Node.js 24.18.0 with formatting,
+  lint, all workspace type checks, 408 unit tests, all production builds, 12
+  required isolated-database tests, and built-boundary integration smoke
+  coverage. The initial sandboxed attempt was correctly unsuccessful because
+  loopback PostgreSQL access was denied; the scoped local-service rerun passed.
+- T0005 final verification audit: `PASS`; fresh independent ticket review:
+  `APPROVE`, with no actionable correctness or security defect.
+- T0005 manual verification: pass, recorded exactly once in
+  `.codex-runs/manual/T0005.md`.
 - Browser tests: not available
 - Demo scenario: not available
 - Codex CLI integration: not validated
@@ -200,8 +231,10 @@ These commands are not implemented and must not be documented as available elsew
 
 ## Next eligible ticket
 
-T0005 — Repository Registration and Git Adapter is the selected Ready ticket,
-and its T0003 dependency is Done.
+No ticket is currently Ready. T0006 — Run, Ticket, and Assignment Lifecycle
+remains Draft with its T0003 and T0004 dependencies Done; it requires separate
+validation and explicit human promotion before implementation. T0007 remains
+Draft and also depends on T0006.
 
 ## Current milestone status
 

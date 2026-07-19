@@ -65,6 +65,27 @@ and transactions. Its PostgreSQL adapters use parameterized Postgres.js
 templates. Forward-only SQL migrations live under
 `packages/persistence/migrations/` and are recorded with SHA-256 checksums.
 
+`@blackbox/git` provides a database-neutral `GitRepository` boundary for
+non-bare local working trees on macOS and Linux. Registration requires an
+explicit local default-branch name and records canonical working-tree and
+common-Git-directory identity, exact HEAD and default-branch commits, attached
+or detached state, and cleanliness. The adapter uses the installed native Git
+executable after capability probes; it exposes bounded status, deterministic
+binary patch, exact head, and atomic branch-ref creation primitives without
+checkout or worktree behavior. Patch creation uses a temporary alternate index
+and object directory so it does not mutate the real index, working tree, HEAD,
+or protected branch. Status inspection similarly compares no-filter snapshots
+of HEAD, the real-index entries, and the working filesystem through temporary
+indexes rather than asking target-repository porcelain to hash filtered files.
+Scratch roots and child temp variables are controlled by the adapter and remain
+outside both canonical repository identities.
+
+Repositories that require clean/process filters, sparse checkout, partial
+clone, alternates, grafts, or tracked gitlinks are refused rather than invoking
+helpers or silently broadening the boundary. Windows, bare and unborn
+repositories, remote operations, persistence, worktree management, and patch
+application are not supported by this package.
+
 ## Database Commands
 
 ```sh
@@ -104,6 +125,7 @@ pnpm test:database
 pnpm --filter @blackbox/domain test
 pnpm --filter @blackbox/contracts test
 pnpm --filter @blackbox/persistence test
+pnpm --filter @blackbox/git test
 ```
 
 `pnpm test` remains a compatibility alias for `pnpm test:unit`. Run
