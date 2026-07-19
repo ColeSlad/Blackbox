@@ -1,0 +1,36 @@
+[
+  {
+    "schema_version": 1,
+    "event_id": "30000000-0000-4000-8000-000000000001",
+    "aggregate_type": "run",
+    "aggregate_id": "10000000-0000-4000-8000-000000000001",
+    "run_id": "10000000-0000-4000-8000-000000000001",
+    "event_name": "run.created",
+    "occurred_at": "2026-07-19T20:00:00.000Z",
+    "payload": {
+      "schema_version": 1,
+      "id": "10000000-0000-4000-8000-000000000001",
+      "repository_id": "10000000-0000-4000-8000-000000000002",
+      "title": "Example run",
+      "base_commit_sha": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+      "status": "created",
+      "configuration_version": 1,
+      "created_at": "2026-07-19T20:00:00.000Z",
+      "started_at": null,
+      "completed_at": null
+    }
+  },
+  {
+    "schema_version": 1,
+    "event_id": "30000000-0000-4000-8000-000000000002",
+    "aggregate_type": "ticket",
+    "aggregate_id": "20000000-0000-4000-8000-000000000001",
+    "run_id": "10000000-0000-4000-8000-000000000001",
+    "event_name": "ticket.status_changed",
+    "occurred_at": "2026-07-19T20:01:00.000Z",
+    "payload": {
+      "from": "pending",
+      "to": "ready"
+    }
+  }
+]

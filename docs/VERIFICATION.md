@@ -160,6 +160,45 @@ The first two commands must fail safely. The confirmed local reset must migrate
 cleanly afterward. Removing the named Compose volume is a separate deliberate
 manual action, never an automatic migration or verification step.
 
+## Lifecycle coordination verification
+
+Run the T0006-focused checks with PostgreSQL healthy:
+
+```sh
+pnpm --filter @blackbox/application test
+pnpm --filter @blackbox/application typecheck
+pnpm --filter @blackbox/application build
+pnpm --filter @blackbox/persistence test
+pnpm test:database
+pnpm --filter @blackbox/server test
+```
+
+Fake-port tests cover graph validation, every supported run/ticket/assignment
+edge, dependency refusal, reservation eligibility, deterministic inspection,
+locale-independent non-ASCII ordering, single-clock timestamp effects, terminal
+cascades, exact event fields/order/cardinality, and late-failure state/outbox
+rollback for block, cancel, and fail commands. Static tests keep Fastify and
+PostgreSQL types out of the application boundary and reject worktree, Git,
+intent, ledger, queue, validation, and deferred completion/activation
+implementations.
+
+Isolated PostgreSQL tests cover empty and incremental `0003` migration, graph
+and outbox atomicity, same-run and cycle constraints, committed dependency
+eligibility, immutable outbox rows, the assigned/active partial unique index,
+two-service concurrent reservation races, consistent inspection during both
+failure and cancellation cascades, and update/delete/truncate refusal. Injected
+late outbox failures must roll back all earlier aggregate mutations and event
+inserts for block, cancel, and fail commands. Server injection tests cover every
+route, unauthorized and incorrect tokens, malformed input, not-found, conflict,
+persistence failure, public version behavior, and explicit refusal of ticket
+start and assignment activation.
+
+Before acceptance, inspect `0001` and `0002` against the ticket base to prove
+their exact bytes did not change. Inspect generated artifacts and secrets, run
+`pnpm verify`, and then perform the ticket's disposable authenticated API
+workflow. A sandbox-denied loopback attempt is not passing evidence; rerun with
+only scoped local PostgreSQL access.
+
 The T0004 image evaluation used Trivy 0.72.0 against the exact pinned image with
 a vulnerability database updated 2026-07-18T18:43:59Z. It reported zero Alpine
 3.24.1 OS-package findings and 39 fixed-version metadata findings in the

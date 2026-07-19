@@ -790,9 +790,61 @@ assignments, versioned intents, and transactions. Identifiers are
 application-generated UUIDs; timestamps use `timestamptz`; status constraints
 match the version-one domain vocabularies. Structured intent fields use JSONB
 only where the contract is extensible and retain the owning record's explicit
-schema version. Initial repositories provide create and read behavior only;
-lifecycle mutation, outbox publication, ledger ingestion, queues, and product
-endpoints remain later-ticket responsibilities.
+schema version. Initial repositories retain their create/read behavior.
+Migration `0003` adds the lifecycle mutation boundary, acyclic graph
+enforcement, a partial unique index allowing at most one `assigned` or `active`
+assignment per ticket, and an immutable version-one lifecycle outbox.
+
+### Run lifecycle application service
+
+`packages/application` is the framework-independent run coordinator for the
+T0006 command surface. It imports no Fastify or PostgreSQL types. Its explicit
+database-neutral unit-of-work port locks and reads a complete run graph, writes
+aggregate mutations, and appends their outbox records in one transaction; the
+PostgreSQL adapter remains in `packages/persistence`.
+
+Inspection also reads the complete graph in one PostgreSQL transaction. A
+compatible shared run lock spans its run, ticket, dependency, and assignment
+queries, while mutation transactions take an update lock on that same run
+before any cascade. An inspection racing a cascade therefore returns either the
+complete state before the command or the complete committed state after it,
+never a mixed graph.
+
+The service uses the version-one contract parsers and the domain package's pure
+transition functions rather than copying either meaning. Application
+preconditions additionally enforce dependency satisfaction, running-run and
+ready-ticket reservation eligibility, same-run ownership, and deterministic
+cascades. Each command reads its injected clock once. That value supplies every
+timestamp and outbox occurrence time produced by the command.
+
+Assignments created by this service are reservation-only `assigned` records
+with no worktree. Blocking or cancelling their ticket cancels the reservation.
+Run cancellation cancels assigned reservations and every pending, ready, or
+blocked ticket. Run failure instead fails assigned reservations, cancels those
+tickets, and fails the run. Every terminal assignment disposition sets
+`released_at`; run start and terminal disposition set `started_at` and
+`completed_at` respectively.
+
+Ticket `running`, assignment `active`, ticket `done`, and run `completed` remain
+unavailable application operations. T0007 must atomically prove and bind a
+clean exact-base worktree before the first two transitions exist. T0013 must
+persist passing verification evidence before either completion transition
+exists.
+
+Every created aggregate produces one `<aggregate>.created` record, and every
+status mutation produces one `<aggregate>.status_changed` record. Records carry
+an event UUID, schema version, aggregate type and ID, run ID, occurrence time,
+deterministic event name, and only the created record or `from`/`to` payload.
+Multi-aggregate inserts use locale-independent UTF-16 ordering by aggregate type
+and ID. The outbox rejects row updates, row deletion, and table truncation.
+These records are pending domain delivery only: they make no T0009 producer
+sequence, hash chain, recording timestamp, delivery, consumption, or
+execution-ledger claim.
+
+Fastify is only the HTTP adapter. Version-one product routes are local bearer
+authenticated and return safe stable errors; `GET /version` stays public. The
+MVP token is explicit local process configuration, not a hosted authentication
+or authorization system.
 
 ### Git repository and worktrees
 

@@ -1,12 +1,36 @@
 import { pathToFileURL } from "node:url";
 
+import { LifecycleService } from "@blackbox/application";
+import {
+  createPostgresPersistence,
+  readDatabaseConfig,
+} from "@blackbox/persistence";
+
 import { buildServer } from "./app.js";
 
-export async function startServer(): Promise<void> {
-  const server = buildServer();
-  const port = Number.parseInt(process.env.PORT ?? "3000", 10);
+export async function startServer(
+  environment: NodeJS.ProcessEnv = process.env,
+): Promise<void> {
+  const bearerToken = environment.BLACKBOX_API_TOKEN;
+  if (bearerToken === undefined || !/\S/.test(bearerToken)) {
+    throw new Error("BLACKBOX_API_TOKEN must be configured.");
+  }
+  const persistence = await createPostgresPersistence(
+    readDatabaseConfig(environment).url,
+  );
+  const server = buildServer({
+    bearerToken,
+    lifecycle: new LifecycleService(persistence.lifecycle),
+    close: () => persistence.close(),
+  });
+  const port = Number.parseInt(environment.PORT ?? "3000", 10);
 
-  await server.listen({ host: "127.0.0.1", port });
+  try {
+    await server.listen({ host: "127.0.0.1", port });
+  } catch (error) {
+    await server.close().catch(() => undefined);
+    throw error;
+  }
 }
 
 if (

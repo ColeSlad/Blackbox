@@ -25,13 +25,15 @@ you need to override those local defaults; actual `.env` files are ignored.
 Run each process from a separate terminal:
 
 ```sh
-pnpm dev:server
+BLACKBOX_API_TOKEN="$(node -e 'console.log(require("node:crypto").randomBytes(32).toString("hex"))')" pnpm dev:server
 pnpm dev:worker
 pnpm dev:web
 ```
 
-The API listens on `http://127.0.0.1:3000` and exposes `GET /version`. The web
-development server prints its local URL. Run the compiled CLI after building:
+The API listens on `http://127.0.0.1:3000`. `GET /version` remains public; all
+`/v1` lifecycle routes require the explicitly configured local bearer token.
+The token is not stored by Blackbox. The web development server prints its
+local URL. Run the compiled CLI after building:
 
 ```sh
 pnpm build
@@ -64,6 +66,58 @@ interfaces for runs, tickets with dependencies, assignments, intent versions,
 and transactions. Its PostgreSQL adapters use parameterized Postgres.js
 templates. Forward-only SQL migrations live under
 `packages/persistence/migrations/` and are recorded with SHA-256 checksums.
+
+`@blackbox/application` coordinates the dependency-aware run, ticket, and
+assignment-reservation lifecycle through a database-neutral transaction port.
+It creates complete run graphs atomically, starts runs, readies eligible
+tickets, reserves one future writer, blocks or cancels tickets, and fails or
+cancels runs. Every aggregate mutation writes one immutable version-one domain
+event to `lifecycle_outbox` in the same transaction. These pending delivery
+records are not execution-ledger envelopes.
+
+Ticket start, assignment activation, ticket completion, and run completion are
+deliberately unavailable. T0007 must first bind a clean exact-base worktree
+before execution can start, and T0013 must persist passing verification evidence
+before completion can succeed.
+
+## Local Lifecycle API
+
+Start a migrated database and the server with a disposable token:
+
+```sh
+pnpm db:up
+pnpm db:migrate
+export BLACKBOX_API_TOKEN="$(node -e 'console.log(require("node:crypto").randomBytes(32).toString("hex"))')"
+pnpm dev:server
+```
+
+In another terminal, reuse that token to create and inspect a run:
+
+```sh
+curl --fail-with-body \
+  -H "Authorization: Bearer $BLACKBOX_API_TOKEN" \
+  -H "Content-Type: application/json" \
+  --data @fixtures/lifecycle/create-run-v1.json \
+  http://127.0.0.1:3000/v1/runs
+
+curl --fail-with-body \
+  -H "Authorization: Bearer $BLACKBOX_API_TOKEN" \
+  http://127.0.0.1:3000/v1/runs/RUN_UUID
+```
+
+Lifecycle commands use `POST` on these paths:
+
+- `/v1/runs/RUN_UUID/start`
+- `/v1/runs/RUN_UUID/tickets/TICKET_UUID/ready`
+- `/v1/runs/RUN_UUID/tickets/TICKET_UUID/assignments` with an `agent_id`
+- `/v1/runs/RUN_UUID/tickets/TICKET_UUID/block`
+- `/v1/runs/RUN_UUID/tickets/TICKET_UUID/cancel`
+- `/v1/runs/RUN_UUID/fail`
+- `/v1/runs/RUN_UUID/cancel`
+
+Responses contain the deterministically ordered run graph. Errors contain only
+a stable code and safe message. The server binds to loopback and this bearer
+token is local authentication, not remote or multi-user authorization.
 
 `@blackbox/git` provides a database-neutral `GitRepository` boundary for
 non-bare local working trees on macOS and Linux. Registration requires an
@@ -125,6 +179,7 @@ pnpm test:database
 pnpm --filter @blackbox/domain test
 pnpm --filter @blackbox/contracts test
 pnpm --filter @blackbox/persistence test
+pnpm --filter @blackbox/application test
 pnpm --filter @blackbox/git test
 ```
 

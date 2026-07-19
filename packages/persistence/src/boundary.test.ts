@@ -72,7 +72,7 @@ describe("persistence boundaries", () => {
     expect(unsafeCalls[0]).toContain("transaction.unsafe(migration.sql)");
   });
 
-  it("keeps exactly two ordered immutable migration files", async () => {
+  it("keeps exactly three ordered immutable migration files", async () => {
     const migrationNames = (
       await readdir(
         path.join(repositoryRoot, "packages/persistence/migrations"),
@@ -81,6 +81,7 @@ describe("persistence boundaries", () => {
     expect(migrationNames).toEqual([
       "0001_schema_migrations.sql",
       "0002_initial_command_records.sql",
+      "0003_lifecycle_state_and_outbox.sql",
     ]);
     const schema = await readRepositoryFile(
       "packages/persistence/migrations/0002_initial_command_records.sql",
@@ -98,6 +99,17 @@ describe("persistence boundaries", () => {
         ),
       );
     }
+    const lifecycleSchema = await readRepositoryFile(
+      "packages/persistence/migrations/0003_lifecycle_state_and_outbox.sql",
+    );
+    expect(lifecycleSchema).toContain("CREATE TABLE lifecycle_outbox");
+    expect(lifecycleSchema).toContain(
+      "assignments_one_live_reservation_per_ticket",
+    );
+    expect(lifecycleSchema).toContain("WHERE status IN ('assigned', 'active')");
+    expect(lifecycleSchema).toContain("reject_ticket_dependency_cycle");
+    expect(lifecycleSchema).toContain("reject_lifecycle_outbox_mutation");
+    expect(lifecycleSchema).toContain("BEFORE TRUNCATE ON lifecycle_outbox");
   });
 
   it("requires the database suite in local and canonical CI verification", async () => {
