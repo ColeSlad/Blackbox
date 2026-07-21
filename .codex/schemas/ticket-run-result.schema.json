@@ -31,6 +31,7 @@
       "enum": [
         "BLOCKED_VALIDATION",
         "BLOCKED_EXPLORATION",
+        "READY_FOR_IMPLEMENTATION",
         "IMPLEMENTATION_FAILED",
         "VERIFICATION_FAILED",
         "REVIEW_BLOCKED",
@@ -96,8 +97,12 @@
     "worker": {
       "type": "object",
       "additionalProperties": false,
-      "required": ["result", "summary"],
+      "required": ["backend", "result", "summary"],
       "properties": {
+        "backend": {
+          "type": "string",
+          "enum": ["CODEX", "HERMES"]
+        },
         "result": {
           "type": "string",
           "enum": ["NOT_RUN", "COMPLETE", "PARTIAL", "FAILED"]
@@ -197,7 +202,12 @@
       "properties": {
         "result": {
           "type": "string",
-          "enum": ["NOT_RUN", "PASS", "PASS_WITH_NONBLOCKING_FINDINGS", "BLOCKED"]
+          "enum": [
+            "NOT_RUN",
+            "PASS",
+            "PASS_WITH_NONBLOCKING_FINDINGS",
+            "BLOCKED"
+          ]
         },
         "summary": {
           "type": "string"

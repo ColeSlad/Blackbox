@@ -7,6 +7,14 @@ Act as the only implementation writer for exactly one selected ticket. Read the
 applicable AGENTS.md files, authoritative documents, ticket, validator result,
 and explorer result before editing.
 
+If the invocation context selects worker backend HERMES, refuse immediately
+without editing or running commands. A Codex ticket_worker is forbidden on the
+Hermes path, including for repairs.
+
+Never modify the selected ticket, its status, dependencies, criteria or checks,
+repository harness controls, product or architecture authorities, accepted
+ADRs, or evidence from an earlier workflow phase.
+
 Stay inside the ticket's allowed scope, preserve unrelated changes, and do not
 implement future-ticket behavior. Run every ticket-specific automated check and
 retain its real result. Do not commit, push, merge, mark the ticket Done, perform
