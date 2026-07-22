@@ -1,6 +1,6 @@
 # T0007 — Isolated Worktree Manager
 
-Status: Ready
+Status: Done
 Milestone: M1 — Transactional execution
 
 ## Outcome
@@ -283,8 +283,8 @@ T0008 and later tickets are intentionally not dependencies.
   procedures to `docs/VERIFICATION.md`.
 - Record available worktree behavior and T0008–T0016 limitations in
   `docs/STATUS.md`.
-- Keep this ticket Draft until separate validation and explicit human
-  promotion.
+- Record Ready status only after separate read-only validation and explicit
+  human promotion; both gates were completed before implementation began.
 
 ## Rollback
 
@@ -350,7 +350,57 @@ root or rewrite applied migrations.
 
 ## Readiness
 
-This Draft resolves worktree ownership, deterministic paths and refs,
+This Ready ticket resolves worktree ownership, deterministic paths and refs,
 provisioning recovery, assignment binding, retention, patch inspection, and
-cleanup safety. Separate read-only validation and explicit human promotion
-remain mandatory before Ready.
+cleanup safety. Separate read-only validation and explicit human promotion were
+completed before implementation began.
+
+## Completion Evidence
+
+Completed: 2026-07-21
+
+Accepted implementation:
+
+- Added static server-owned repository UUID bindings and a framework-independent
+  worktree manager with persisted ownership, deterministic exact-base paths and
+  branches, recoverable provisioning and removal, and explicit retention.
+- Added assignment-bound inspect, binary patch, retention, release, and safe
+  non-forced cleanup operations with path, registration, cleanliness, ownership,
+  and terminal-state refusal checks.
+- Added the atomic worktree-backed ticket-start and assignment-activation guard,
+  PostgreSQL migration `0004`, versioned worktree outbox records, authenticated
+  path-free server routes, and bounded native-Git worktree primitives.
+- Kept intent, ledger, queue, arbitrary command, Codex, validation, transaction,
+  conflict, integration, replay, and scheduling behavior outside T0007.
+
+Automated evidence:
+
+- Aggregate Node.js 24.18.0 verification: pass with formatting, lint, all
+  workspace type checks, 509 unit tests, all production builds, 18 persistence
+  database tests, 12 application database tests, and integration smoke coverage.
+- Focused Git, worktree, application, server, persistence, concurrency,
+  cleanup-matrix, recovery, UUID, binding, ownership, static-policy, migration,
+  protected-main, generated-artifact, prohibited-operation, and secret checks:
+  pass.
+- Final verification audit: `PASS`, with no remaining automated acceptance or
+  verification gap.
+- Fresh independent ticket review: `APPROVE`, with no findings.
+- The retained initial aggregate run exceeded Vitest's five-second timeout in
+  one native-Git integration case without failing an assertion. The case passed
+  three consecutive runs after receiving the bounded 20-second timeout used by
+  neighboring Git-heavy tests, and subsequent aggregate and recovery validation
+  passed.
+
+Manual evidence:
+
+- `.codex-runs/manual/T0007.md` records the explicit human `Pass` result after
+  the authoritative nine-step manual-verification checklist.
+
+Current limitations:
+
+- Repository bindings are static server-owned local configuration; no
+  registration API or durable repository aggregate exists.
+- Cleanup is explicit, clean-only, terminal, unretained, and non-forced; there is
+  no timer or automatic retention policy.
+- Worktree-backed ticket start and assignment activation are available, but
+  ticket and run completion still await T0013 verification evidence.

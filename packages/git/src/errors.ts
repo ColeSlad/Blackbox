@@ -7,6 +7,9 @@ export const GIT_ERROR_CODES = Object.freeze({
   defaultBranchMissing: "GIT_DEFAULT_BRANCH_MISSING",
   branchInvalid: "GIT_BRANCH_INVALID",
   branchExists: "GIT_BRANCH_EXISTS",
+  branchMissing: "GIT_BRANCH_MISSING",
+  worktreeCollision: "GIT_WORKTREE_COLLISION",
+  worktreeMissing: "GIT_WORKTREE_MISSING",
   shaInvalid: "GIT_SHA_INVALID",
   shaUnavailable: "GIT_SHA_UNAVAILABLE",
   executableMissing: "GIT_EXECUTABLE_MISSING",
@@ -30,6 +33,12 @@ const ERROR_MESSAGES: Readonly<Record<GitErrorCode, string>> = Object.freeze({
   [GIT_ERROR_CODES.defaultBranchMissing]: "Default branch does not exist.",
   [GIT_ERROR_CODES.branchInvalid]: "Branch name is invalid.",
   [GIT_ERROR_CODES.branchExists]: "Branch already exists.",
+  [GIT_ERROR_CODES.branchMissing]:
+    "Branch does not exist at the expected commit.",
+  [GIT_ERROR_CODES.worktreeCollision]:
+    "Worktree path or branch is already registered.",
+  [GIT_ERROR_CODES.worktreeMissing]:
+    "Worktree is not registered at the expected path.",
   [GIT_ERROR_CODES.shaInvalid]: "Commit SHA is invalid.",
   [GIT_ERROR_CODES.shaUnavailable]: "Commit SHA is unavailable.",
   [GIT_ERROR_CODES.executableMissing]: "Native Git executable is unavailable.",

@@ -21,9 +21,11 @@ import type {
   LifecycleRunGraph,
   LifecycleUnitOfWork,
 } from "@blackbox/persistence";
+import type { AssignmentWorktreeV1 } from "@blackbox/worktrees";
 
 import {
   conflict,
+  deferred,
   invalidInput,
   invalidTransition,
   notFound,
@@ -31,7 +33,7 @@ import {
 
 const SHA_PATTERN = /^(?:[0-9a-f]{40}|[0-9a-f]{64})$/;
 const UUID_PATTERN =
-  /^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
+  /^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/;
 
 export interface CreateTicketInput {
   readonly external_key: string;
@@ -57,6 +59,11 @@ export interface ReserveAssignmentInput {
 export interface LifecycleServiceOptions {
   readonly clock?: () => string;
   readonly identifier?: () => string;
+  readonly worktreeVerifier?: WorktreeActivationVerifier;
+}
+
+export interface WorktreeActivationVerifier {
+  verifyActiveRecord(record: AssignmentWorktreeV1): Promise<void>;
 }
 
 type AggregateMutation =
@@ -291,6 +298,7 @@ function transitionOrThrow<T>(operation: () => T): T {
 export class LifecycleService {
   private readonly clock: () => string;
   private readonly identifier: () => string;
+  private readonly worktreeVerifier: WorktreeActivationVerifier | undefined;
 
   constructor(
     private readonly persistence: LifecyclePersistence,
@@ -298,18 +306,25 @@ export class LifecycleService {
   ) {
     this.clock = options.clock ?? (() => new Date().toISOString());
     this.identifier = options.identifier ?? randomUUID;
+    this.worktreeVerifier = options.worktreeVerifier;
+  }
+
+  private nextIdentifier(): string {
+    const identifier = this.identifier();
+    validateIdentifier(identifier);
+    return identifier;
   }
 
   async createRun(value: unknown): Promise<LifecycleRunGraph> {
     const input = parseCreateRunInput(value);
     const occurredAt = this.clock();
-    const runId = this.identifier();
+    const runId = this.nextIdentifier();
     const ticketIds = new Map(
       [...input.tickets]
         .sort((left, right) =>
           compareStrings(left.external_key, right.external_key),
         )
-        .map((ticket) => [ticket.external_key, this.identifier()]),
+        .map((ticket) => [ticket.external_key, this.nextIdentifier()]),
     );
     const run = parseRunV1({
       schema_version: 1,
@@ -467,7 +482,7 @@ export class LifecycleService {
       }
       const assignment = parseAgentAssignmentV1({
         schema_version: 1,
-        id: this.identifier(),
+        id: this.nextIdentifier(),
         run_id: runId,
         ticket_id: ticketId,
         agent_id: input.agent_id,
@@ -490,6 +505,89 @@ export class LifecycleService {
         occurredAt,
       );
       return { ...graph, assignments: [...graph.assignments, assignment] };
+    });
+  }
+
+  async startTicketAssignment(
+    runId: string,
+    ticketId: string,
+    assignmentId: string,
+  ): Promise<LifecycleRunGraph> {
+    validateIdentifier(runId);
+    validateIdentifier(ticketId);
+    validateIdentifier(assignmentId);
+    if (this.worktreeVerifier === undefined) {
+      throw deferred();
+    }
+    const worktreeVerifier = this.worktreeVerifier;
+    const occurredAt = this.clock();
+    return this.mutateGraph(runId, occurredAt, async (unitOfWork, graph) => {
+      if (graph.run.status !== "running") {
+        throw conflict("A ticket can start only in a running run.");
+      }
+      const ticket = this.requireTicket(graph, ticketId);
+      const assignment = graph.assignments.find(
+        (candidate) => candidate.id === assignmentId,
+      );
+      if (
+        ticket.status !== "ready" ||
+        assignment === undefined ||
+        assignment.run_id !== runId ||
+        assignment.ticket_id !== ticketId ||
+        assignment.status !== "assigned" ||
+        assignment.worktree_id === null ||
+        unitOfWork.readAssignmentWorktree === undefined
+      ) {
+        throw conflict("The ticket assignment is not eligible to start.");
+      }
+      const worktree = await unitOfWork.readAssignmentWorktree(
+        assignment.worktree_id,
+      );
+      if (
+        worktree === null ||
+        worktree.id !== assignment.worktree_id ||
+        worktree.repository_id !== graph.run.repository_id ||
+        worktree.run_id !== runId ||
+        worktree.ticket_id !== ticketId ||
+        worktree.assignment_id !== assignmentId ||
+        worktree.base_commit_sha !== graph.run.base_commit_sha ||
+        worktree.status !== "active"
+      ) {
+        throw conflict("The assignment worktree proof is inconsistent.");
+      }
+      await worktreeVerifier.verifyActiveRecord(worktree);
+      const updatedTicket = parseTicketV1({
+        ...ticket,
+        status: transitionOrThrow(() =>
+          transitionTicketStatus(ticket.status, "running"),
+        ),
+      });
+      const updatedAssignment = parseAgentAssignmentV1({
+        ...assignment,
+        status: transitionOrThrow(() =>
+          transitionAssignmentStatus(assignment.status, "active"),
+        ),
+      });
+      await unitOfWork.updateTicket(updatedTicket, ticket.status);
+      await unitOfWork.updateAssignment(updatedAssignment, assignment.status);
+      await this.writeEvents(
+        unitOfWork,
+        [
+          this.statusMutation("ticket", updatedTicket, ticket.status),
+          this.statusMutation(
+            "assignment",
+            updatedAssignment,
+            assignment.status,
+          ),
+        ],
+        occurredAt,
+      );
+      return {
+        ...this.replaceTicket(graph, updatedTicket),
+        assignments: graph.assignments.map((candidate) =>
+          candidate.id === assignmentId ? updatedAssignment : candidate,
+        ),
+      };
     });
   }
 
@@ -695,7 +793,7 @@ export class LifecycleService {
     for (const mutation of ordered) {
       const record: LifecycleOutboxRecord = Object.freeze({
         schema_version: 1,
-        event_id: this.identifier(),
+        event_id: this.nextIdentifier(),
         aggregate_type: mutation.aggregateType,
         aggregate_id: mutation.record.id,
         run_id:

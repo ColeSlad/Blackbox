@@ -786,8 +786,8 @@ repository understands. Migrations are forward-only and never rewrite an
 applied file.
 
 The foundation schema stores runs, tickets, same-run ticket dependencies,
-assignments, versioned intents, and transactions. Identifiers are
-application-generated UUIDs; timestamps use `timestamptz`; status constraints
+assignments, versioned intents, and transactions. Identifiers are canonical
+lowercase application-generated UUIDs; timestamps use `timestamptz`; status constraints
 match the version-one domain vocabularies. Structured intent fields use JSONB
 only where the contract is extensible and retain the owning record's explicit
 schema version. Initial repositories retain their create/read behavior.
@@ -816,6 +816,8 @@ preconditions additionally enforce dependency satisfaction, running-run and
 ready-ticket reservation eligibility, same-run ownership, and deterministic
 cascades. Each command reads its injected clock once. That value supplies every
 timestamp and outbox occurrence time produced by the command.
+Repository and agent UUID bodies, aggregate IDs, and outbox event IDs must all
+be canonical lowercase before any value reaches persistence or an event record.
 
 Assignments created by this service are reservation-only `assigned` records
 with no worktree. Blocking or cancelling their ticket cancels the reservation.
@@ -884,10 +886,72 @@ snapshot in a temporary alternate index and object directory, then emits a
 full-index binary patch against an exact commit. Atomic branch creation writes
 one validated ref at an exact commit. These operations do not mutate the real
 index, working tree, object database, HEAD, current branch, or default branch.
-Patch application, staging/integration branches, persistence, repository
-lifecycle, and worktree creation or cleanup remain outside this boundary. T0006
-owns run/ticket/assignment reservation lifecycle, while T0007 owns the
-server-bound repository binding and isolated worktree lifecycle.
+Patch application, staging/integration branches, and generic repository
+lifecycle remain outside this boundary. Its T0007 extension is limited to
+structured native worktree list/add, bounded read-only unknown-content
+inspection, non-forced removal, and compare-and-delete dedicated-branch
+primitives. Branch deletion refuses while any worktree registration still uses
+the branch. Non-forced removal accepts the expected branch and HEAD/base SHA,
+then re-reads both Git registration and the actual path's root, common Git
+directory, branch, and HEAD immediately before removal. A clean path
+substitution is a collision and remains untouched.
+
+`packages/worktrees` owns the framework-independent isolated-worktree manager.
+Server-owned static configuration maps a canonical lowercase repository UUID to
+an exact canonical working-tree root, common Git directory, and default branch;
+callers never provide these paths. The configured managed root is canonical, outside every
+repository identity, and paths and refs derive only from full repository, run,
+ticket, and assignment UUID ownership. Migration `0004` persists one historical
+worktree per assignment, unique path and branch ownership, operation tokens,
+durable operation stages, retention, explicit recovery dispositions, and
+version-one outbox events. Provisioning and removal reservations rotate their
+database-guarded token so independent manager processes converge on one writer;
+non-owners poll persisted state and never mutate Git. Same-process provision
+coalescing includes repository identity, so a concurrent repository substitution
+cannot receive another binding's promise. Active idempotency also requires the
+persisted base to equal the ownership graph's current run base.
+
+Final activation locks and re-reads the run, ticket, assignment, and worktree,
+then revalidates repository ID, recorded base, lifecycle eligibility, null
+assignment binding, operation token/stage, and outbox ownership before any
+binding or event is persisted. The HTTP adapter maps internal worktree records
+to a minimal assignment-bound DTO and never exposes operation metadata or
+canonical filesystem/ref details.
+
+Provisioning reserves `provisioning` before Git mutation, creates an exact-base
+dedicated branch and worktree, verifies identity, HEAD, branch, and cleanliness,
+then atomically marks `active`, binds `assignment.worktree_id`, and appends one
+`worktree.created` event. Retention changes are active-only and append one
+`worktree.retention_changed` event. Cleanup first proves terminal assignment,
+released retention, exact ownership, cleanliness, and absence of untracked,
+ignored, or otherwise unknown content, reserves `removing`, repeats the
+unknown-content check immediately before Git mutation, then non-forcibly removes
+only the registered worktree and compare-deletes only its dedicated branch
+before persisting `removed` and one `worktree.removed` event.
+Partial failures retain `provision_cleanup_required` or
+`removal_reconcile_required`; collisions and unknown content are never deleted.
+A newly acquired record requires all deterministic resources to be absent.
+Persisted ownership is deliberately narrower than observed Git state:
+`branch_creating` proves no mutation, `worktree_creating` proves only branch
+creation, and `verifying` or `activating` proves both branch and worktree
+creation. A retry never adopts an exact resource merely because it appeared in
+a crash window or after a failed add. Current-process successful mutations may
+be compensated, while an unproved resource is preserved as a collision. A
+`provision_cleanup_required` disposition survives token rotation until proven
+resources are compensated and the stage returns to `reserved`. Worktree
+identity requires one registration matching both expected path and branch;
+moved, duplicated, detached, substituted, or otherwise mismatched registrations
+are collisions. Worktree removal and branch deletion require the dedicated ref
+and registered HEAD to equal the persisted base, and final `removed` requires
+the path, branch, and both path/branch registrations to be absent.
+
+The application service exposes only one new combined start guard. While its
+run graph and worktree record are locked in one transaction, it rechecks full
+ownership, active state, recorded base, current HEAD, branch, and cleanliness,
+then writes exactly the ticket `ready → running` and assignment
+`assigned → active` mutations and their two lifecycle outbox events. Standalone
+start/activation, intent, ledger, queue, arbitrary execution, validation,
+transaction, and integration behavior remain deferred.
 
 ### Artifact store
 

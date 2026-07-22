@@ -1,7 +1,7 @@
 # Repository Status
 
-Last updated: 2026-07-19
-Last validated commit: 2bd5816
+Last updated: 2026-07-21
+Last validated base commit: 924fcfc
 Current milestone: M1 — Transactional execution
 
 ## Completed capabilities
@@ -48,11 +48,16 @@ Current milestone: M1 — Transactional execution
   per-aggregate lifecycle outbox records.
 - Local bearer-authenticated version-one lifecycle routes with stable sanitized
   errors while `GET /version` remains public.
+- Static server-owned repository UUID bindings and deterministic exact-base
+  assignment worktrees with persisted ownership and recovery state.
+- Assignment-bound worktree inspection and binary patch generation, explicit
+  retention, safe non-forced terminal cleanup, and an atomic worktree-backed
+  ticket-start and assignment-activation guard.
 
 ## In progress
 
-- T0007 — Isolated Worktree Manager is Ready and selected for the next
-  implementation run; implementation has not begun.
+- No product ticket is currently in progress. T0008 remains Draft and requires
+  separate validation and explicit human promotion before implementation.
 
 ## Current limitations
 
@@ -67,12 +72,11 @@ Current milestone: M1 — Transactional execution
   emit events, execute validations, detect conflicts, analyze causality, or
   evaluate guardrails.
 - No CLI workflow or worker job consumes the lifecycle service yet.
-- Repository registration is an in-memory inspectable runtime value only. T0006
-  owns run, ticket, and assignment reservation lifecycle; T0007 owns the
-  server-bound repository binding and isolated worktree lifecycle.
-- T0006 creates reservation-only assignments. Ticket start, active assignments,
-  ticket completion, and run completion remain unavailable until T0007 and
-  T0013 satisfy their worktree and verification-evidence gates.
+- Repository identity is bound through static server-owned local configuration;
+  there is no registration API or durable repository aggregate.
+- Ticket start and assignment activation require a bound active clean worktree.
+  Ticket completion and run completion remain unavailable until T0013 provides
+  persisted passing verification evidence.
 - Lifecycle outbox records are pending immutable domain-delivery records only;
   publishing, consumption, producer sequences, hashing, and the execution
   ledger remain T0009 work.
@@ -82,8 +86,8 @@ Current milestone: M1 — Transactional execution
 - The product Codex subprocess adapter has not been implemented or validated.
 - The Git adapter supports native Git on macOS and Linux only and refuses bare,
   unborn, sparse, partial-clone, alternate-object, grafted, gitlink-containing,
-  and clean/process-filter repositories. It does not persist registrations,
-  parse configuration, create worktrees, apply patches, or access remotes.
+  and clean/process-filter repositories. It supports bounded structured
+  worktree operations but does not apply patches or access remotes.
 - Filesystem-read instrumentation remains an open technical decision.
 - Causal diagnosis metrics currently have definitions but no benchmark implementation.
 - The MVP is limited to local Git repositories and coding-agent effects.
@@ -244,6 +248,35 @@ These commands are not implemented and must not be documented as available elsew
   `APPROVE`, with no actionable correctness or security finding.
 - T0006 manual verification: pass, recorded explicitly in
   `.codex-runs/manual/T0006.md`.
+- T0007 aggregate verification: pass under Node.js 24.18.0 with formatting,
+  lint, all workspace type checks, 509 unit tests, all production builds, 18
+  persistence database tests, 12 application database tests, and built-boundary
+  integration smoke coverage.
+- T0007 focused Git, worktree, application, server, persistence, concurrency,
+  cleanup-matrix, recovery, UUID, binding, ownership, migration, static-policy,
+  protected-main, generated-artifact, prohibited-operation, and secret checks:
+  pass.
+- The retained initial T0007 aggregate log at
+  `.codex-runs/tickets/T0007-interactive-resume/20260721T042726Z/pnpm-verify.log`
+  failed one of 484 unit tests because a deterministic native-Git integration
+  case exceeded Vitest's default five-second timeout; it did not fail an
+  assertion. The exact case then passed three consecutive Node.js 24 runs in
+  5.15–5.94 seconds after receiving the same bounded 20-second timeout as
+  neighboring Git-heavy cases.
+- The separate successful T0007 rerun is retained at
+  `.codex-runs/tickets/T0007-interactive-resume/20260721T043502Z/pnpm-verify.log`:
+  formatting, lint, type checks, 484 unit tests, builds, 30 isolated PostgreSQL
+  tests, and integration smoke passed. Its subsequent audit and independent
+  review still blocked closure on cleanup-matrix, registration-identity,
+  recovery-ownership, ignored-content, canonical-UUID, and stale-documentation
+  findings. The recovery-v2 run and focused repair resolved those findings.
+- T0007 final verification audit: `PASS`; fresh independent ticket review:
+  `APPROVE`, with no finding.
+- T0007 manual verification: pass, recorded explicitly in
+  `.codex-runs/manual/T0007.md` after the nine-step manual workflow.
+- T0008 and later behavior remains unavailable: there is no accepted intent,
+  ledger ingestion, queue, command or Codex execution, validation, transaction,
+  conflict, integration, replay, or scheduling behavior.
 - Browser tests: not available
 - Demo scenario: not available
 - Codex CLI integration: not validated
@@ -264,8 +297,9 @@ These commands are not implemented and must not be documented as available elsew
 
 ## Next eligible ticket
 
-T0007 — Isolated Worktree Manager is Ready with T0005 and T0006 Done after
-separate read-only validation and explicit human promotion.
+T0008 is dependency-eligible after T0003, T0004, and T0006, but remains Draft.
+It requires separate read-only validation and explicit human promotion before
+implementation.
 
 ## Current milestone status
 
@@ -280,3 +314,11 @@ M0 — Foundation is complete:
   ledger events exist with schema tests.
 - Accepted architecture decisions document the selected stack and Codex
   integration approach.
+
+M1 — Transactional execution is in progress:
+
+- T0005 through T0007 are Done.
+- Repository inspection, lifecycle reservation, and isolated worktree ownership
+  now form the accepted local transactional execution foundation.
+- Accepted intent, execution-ledger, queue, command-runner, and validation
+  increments remain unimplemented.

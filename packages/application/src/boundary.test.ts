@@ -19,18 +19,19 @@ describe("application boundaries", () => {
     expect(sources.join("\n")).not.toMatch(/fastify|from ["']postgres["']/i);
   });
 
-  it("does not add deferred execution-plane or later-domain behavior", async () => {
+  it("adds only the accepted worktree-backed start guard, not later execution behavior", async () => {
     const service = await readFile(
       path.join(sourceDirectory, "lifecycle-service.ts"),
       "utf8",
     );
-    expect(service.replaceAll("worktree_id", "")).not.toMatch(
-      /child_process|worktree|from ["'][^"']*git|intent_contract|ledger_event|queue_job/i,
+    expect(service).not.toMatch(
+      /child_process|from ["'][^"']*git|intent_contract|ledger_event|queue_job/i,
     );
     expect(service).not.toMatch(
-      /startTicket|completeTicket|activateAssignment|completeRun/,
+      /completeTicket|activateAssignment|completeRun/,
     );
-    expect(service).not.toContain('status: "active"');
+    expect(service).toContain("startTicketAssignment(");
+    expect(service).toContain("verifyActiveRecord(worktree)");
   });
 
   it("keeps lifecycle API and outbox fixtures inspectable", async () => {

@@ -63,6 +63,12 @@ export interface CreatedBranch {
   readonly commitSha: string;
 }
 
+export interface RegisteredWorktree {
+  readonly path: string;
+  readonly headCommitSha: string;
+  readonly branch: string | null;
+}
+
 export interface GitAdapterOptions {
   readonly maxOutputBytes?: number;
 }
@@ -77,4 +83,15 @@ export interface GitRepository {
     branchName: string,
     startCommitSha: string,
   ): Promise<CreatedBranch>;
+  assertCommitExists(commitSha: string): Promise<void>;
+  getBranchCommit(branchName: string): Promise<string | null>;
+  listWorktrees(): Promise<readonly RegisteredWorktree[]>;
+  hasUnknownContent(): Promise<boolean>;
+  addWorktree(path: string, branchName: string): Promise<RegisteredWorktree>;
+  removeWorktree(
+    path: string,
+    expectedBranchName: string,
+    expectedHeadCommitSha: string,
+  ): Promise<void>;
+  deleteBranch(branchName: string, expectedCommitSha: string): Promise<void>;
 }

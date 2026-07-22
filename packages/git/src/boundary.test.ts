@@ -27,7 +27,7 @@ describe("Git package boundary", () => {
     expect(source).not.toMatch(/\bexec(?:File|FileSync|Sync)?\s*\(/u);
   });
 
-  it("does not expose prohibited mutation, network, worktree, or command APIs", async () => {
+  it("exposes no mutation or command APIs beyond the accepted worktree primitives", async () => {
     const contract = await readFile(
       join(packageRoot, "src", "contracts.ts"),
       "utf8",
@@ -35,14 +35,12 @@ describe("Git package boundary", () => {
     for (const method of [
       "checkout",
       "switch",
-      "worktree",
       "apply",
       "commit",
       "merge",
       "rebase",
       "reset",
       "clean",
-      "deleteBranch",
       "clone",
       "fetch",
       "pull",
@@ -53,7 +51,7 @@ describe("Git package boundary", () => {
     }
   });
 
-  it("contains no prohibited Git subcommand invocation", async () => {
+  it("contains no prohibited Git subcommand or forced worktree invocation", async () => {
     const source = await readFile(
       join(packageRoot, "src", "native-git-repository.ts"),
       "utf8",
@@ -61,14 +59,12 @@ describe("Git package boundary", () => {
     for (const command of [
       "checkout",
       "switch",
-      "worktree",
       "apply",
       "commit",
       "merge",
       "rebase",
       "reset",
       "clean",
-      "branch",
       "clone",
       "fetch",
       "pull",
@@ -78,5 +74,10 @@ describe("Git package boundary", () => {
         new RegExp("\\[\\s*[\"']" + command + "[\"']", "u"),
       );
     }
+    expect(source).not.toMatch(
+      /worktree["'],\s*["']remove["'],\s*["'](?:--force|-f)/u,
+    );
+    expect(source).not.toContain('"reset"');
+    expect(source).not.toContain('"clean"');
   });
 });

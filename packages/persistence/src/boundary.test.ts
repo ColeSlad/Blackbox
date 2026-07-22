@@ -13,12 +13,13 @@ async function readRepositoryFile(relativePath: string): Promise<string> {
 }
 
 describe("persistence boundaries", () => {
-  it("pins Postgres.js as the only database runtime dependency", async () => {
+  it("pins Postgres.js as the only external database runtime dependency", async () => {
     const metadata = JSON.parse(
       await readRepositoryFile("packages/persistence/package.json"),
     ) as { dependencies: Record<string, string> };
     expect(metadata.dependencies).toEqual({
       "@blackbox/contracts": "workspace:*",
+      "@blackbox/worktrees": "workspace:*",
       postgres: "3.4.9",
     });
     const lockfile = await readRepositoryFile("pnpm-lock.yaml");
@@ -72,7 +73,7 @@ describe("persistence boundaries", () => {
     expect(unsafeCalls[0]).toContain("transaction.unsafe(migration.sql)");
   });
 
-  it("keeps exactly three ordered immutable migration files", async () => {
+  it("keeps exactly four ordered immutable migration files", async () => {
     const migrationNames = (
       await readdir(
         path.join(repositoryRoot, "packages/persistence/migrations"),
@@ -82,6 +83,7 @@ describe("persistence boundaries", () => {
       "0001_schema_migrations.sql",
       "0002_initial_command_records.sql",
       "0003_lifecycle_state_and_outbox.sql",
+      "0004_assignment_worktrees.sql",
     ]);
     const schema = await readRepositoryFile(
       "packages/persistence/migrations/0002_initial_command_records.sql",
@@ -110,6 +112,13 @@ describe("persistence boundaries", () => {
     expect(lifecycleSchema).toContain("reject_ticket_dependency_cycle");
     expect(lifecycleSchema).toContain("reject_lifecycle_outbox_mutation");
     expect(lifecycleSchema).toContain("BEFORE TRUNCATE ON lifecycle_outbox");
+    const worktreeSchema = await readRepositoryFile(
+      "packages/persistence/migrations/0004_assignment_worktrees.sql",
+    );
+    expect(worktreeSchema).toContain("CREATE TABLE assignment_worktrees");
+    expect(worktreeSchema).toContain("UNIQUE (assignment_id)");
+    expect(worktreeSchema).toContain("assignments_owned_worktree_fk");
+    expect(worktreeSchema).toContain("worktree.retention_changed");
   });
 
   it("requires the database suite in local and canonical CI verification", async () => {

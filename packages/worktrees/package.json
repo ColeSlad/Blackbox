@@ -1,5 +1,5 @@
 {
-  "name": "@blackbox/persistence",
+  "name": "@blackbox/worktrees",
   "version": "0.1.0",
   "private": true,
   "type": "module",
@@ -12,13 +12,11 @@
   },
   "scripts": {
     "typecheck": "tsc --noEmit -p tsconfig.json",
-    "test": "vitest run src --exclude '**/*.database.test.ts'",
-    "test:database": "vitest run src/persistence.database.test.ts --maxWorkers=1",
+    "test": "vitest run src",
     "build": "tsc -p tsconfig.build.json"
   },
   "dependencies": {
-    "@blackbox/contracts": "workspace:*",
-    "@blackbox/worktrees": "workspace:*",
-    "postgres": "3.4.9"
+    "@blackbox/config": "workspace:*",
+    "@blackbox/git": "workspace:*"
   }
 }
