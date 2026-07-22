@@ -7,6 +7,7 @@ import {
   type TicketV1,
 } from "@blackbox/contracts";
 import type postgres from "postgres";
+import type { AssignmentWorktreeV1 } from "@blackbox/worktrees";
 
 import { queryError, queryErrorFromCaught } from "../errors.js";
 import type {
@@ -18,6 +19,35 @@ import type {
 import type { DatabaseSql, TransactionSql } from "./client.js";
 
 type QuerySql = DatabaseSql | TransactionSql;
+
+function worktreeFromRow(row: postgres.Row): AssignmentWorktreeV1 {
+  return Object.freeze({
+    schema_version: 1,
+    id: String(row.id),
+    repository_id: String(row.repository_id),
+    run_id: String(row.run_id),
+    ticket_id: String(row.ticket_id),
+    assignment_id: String(row.assignment_id),
+    working_tree_root: String(row.working_tree_root),
+    common_git_directory: String(row.common_git_directory),
+    default_branch: String(row.default_branch),
+    base_commit_sha: String(row.base_commit_sha),
+    managed_path: String(row.managed_path),
+    branch_name: String(row.branch_name),
+    status: row.status as AssignmentWorktreeV1["status"],
+    retention_status:
+      row.retention_status as AssignmentWorktreeV1["retention_status"],
+    operation_token: String(row.operation_token),
+    operation_stage:
+      row.operation_stage as AssignmentWorktreeV1["operation_stage"],
+    failure_disposition:
+      row.failure_disposition as AssignmentWorktreeV1["failure_disposition"],
+    created_at: timestamp(row.created_at) ?? "",
+    updated_at: timestamp(row.updated_at) ?? "",
+    activated_at: timestamp(row.activated_at),
+    removed_at: timestamp(row.removed_at),
+  });
+}
 
 function timestamp(value: unknown): string | null {
   if (value === null) {
@@ -166,6 +196,17 @@ class PostgresLifecycleUnitOfWork implements LifecycleUnitOfWork {
 
   readRunGraph(runId: string): Promise<LifecycleRunGraph | null> {
     return databaseOperation(() => readGraph(this.sql, runId, "update"));
+  }
+
+  async readAssignmentWorktree(
+    worktreeId: string,
+  ): Promise<AssignmentWorktreeV1 | null> {
+    return databaseOperation(async () => {
+      const rows = await this.sql`
+        SELECT * FROM assignment_worktrees WHERE id = ${worktreeId} FOR UPDATE
+      `;
+      return rows[0] === undefined ? null : worktreeFromRow(rows[0]);
+    });
   }
 
   async insertRun(record: RunV1): Promise<void> {

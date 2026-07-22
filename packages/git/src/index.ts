@@ -12,6 +12,7 @@ export type {
   RepositoryRegistration,
   RepositorySnapshot,
   RepositoryStatus,
+  RegisteredWorktree,
 } from "./contracts.js";
 export {
   GIT_ERROR_CODES,

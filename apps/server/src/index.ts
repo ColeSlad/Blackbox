@@ -1,10 +1,15 @@
 import { pathToFileURL } from "node:url";
 
 import { LifecycleService } from "@blackbox/application";
+import { readWorktreeConfiguration } from "@blackbox/config";
 import {
   createPostgresPersistence,
   readDatabaseConfig,
 } from "@blackbox/persistence";
+import {
+  RepositoryBindingRegistry,
+  WorktreeManager,
+} from "@blackbox/worktrees";
 
 import { buildServer } from "./app.js";
 
@@ -18,9 +23,16 @@ export async function startServer(
   const persistence = await createPostgresPersistence(
     readDatabaseConfig(environment).url,
   );
+  const bindings = await RepositoryBindingRegistry.create(
+    readWorktreeConfiguration(environment),
+  );
+  const worktrees = new WorktreeManager(bindings, persistence.worktrees);
   const server = buildServer({
     bearerToken,
-    lifecycle: new LifecycleService(persistence.lifecycle),
+    lifecycle: new LifecycleService(persistence.lifecycle, {
+      worktreeVerifier: worktrees,
+    }),
+    worktrees,
     close: () => persistence.close(),
   });
   const port = Number.parseInt(environment.PORT ?? "3000", 10);

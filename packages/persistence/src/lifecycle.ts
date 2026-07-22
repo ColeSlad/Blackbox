@@ -4,8 +4,10 @@ import type {
   RunV1,
   TicketV1,
 } from "@blackbox/contracts";
+import type { AssignmentWorktreeV1 } from "@blackbox/worktrees";
 
-export type LifecycleAggregateType = "assignment" | "run" | "ticket";
+export type LifecycleAggregateType =
+  "assignment" | "run" | "ticket" | "worktree";
 
 export interface LifecycleOutboxRecord {
   readonly schema_version: 1;
@@ -19,7 +21,10 @@ export interface LifecycleOutboxRecord {
     | "run.created"
     | "run.status_changed"
     | "ticket.created"
-    | "ticket.status_changed";
+    | "ticket.status_changed"
+    | "worktree.created"
+    | "worktree.removed"
+    | "worktree.retention_changed";
   readonly occurred_at: string;
   readonly payload: JsonObjectV1;
 }
@@ -32,6 +37,9 @@ export interface LifecycleRunGraph {
 
 export interface LifecycleUnitOfWork {
   readRunGraph(runId: string): Promise<LifecycleRunGraph | null>;
+  readAssignmentWorktree?(
+    worktreeId: string,
+  ): Promise<AssignmentWorktreeV1 | null>;
   insertRun(record: RunV1): Promise<void>;
   insertTicket(record: TicketV1): Promise<void>;
   insertDependency(

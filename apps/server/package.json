@@ -12,6 +12,8 @@
   },
   "dependencies": {
     "@blackbox/application": "workspace:*",
+    "@blackbox/config": "workspace:*",
+    "@blackbox/worktrees": "workspace:*",
     "@blackbox/persistence": "workspace:*",
     "fastify": "5.10.0"
   }

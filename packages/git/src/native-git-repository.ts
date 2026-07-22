@@ -28,6 +28,7 @@ import type {
   RepositoryHead,
   RepositoryRegistration,
   RepositoryStatus,
+  RegisteredWorktree,
 } from "./contracts.js";
 import {
   GIT_ERROR_CODES,
@@ -866,6 +867,78 @@ function quotedAlternateObjectPath(value: string): string {
   return JSON.stringify(value);
 }
 
+function canonicalWorktreePath(value: string): string {
+  if (value.length === 0 || value.includes("\0") || !isAbsolute(value)) {
+    throw gitError(GIT_ERROR_CODES.unsupportedPath);
+  }
+  return resolve(value);
+}
+
+function parseWorktreeList(
+  output: Buffer,
+  objectFormat: GitObjectFormat,
+): readonly RegisteredWorktree[] {
+  interface ParsedWorktree {
+    path?: string;
+    headCommitSha?: string;
+    branch?: string | null;
+  }
+  const fields = nulFields(output);
+  const worktrees: RegisteredWorktree[] = [];
+  let current: ParsedWorktree = {};
+  const finish = (): void => {
+    if (current.path === undefined) {
+      if (Object.keys(current).length !== 0) {
+        throw gitError(GIT_ERROR_CODES.unsupportedGit);
+      }
+      return;
+    }
+    if (
+      current.headCommitSha === undefined ||
+      !isExactSha(current.headCommitSha, objectFormat)
+    ) {
+      throw gitError(GIT_ERROR_CODES.unsupportedGit);
+    }
+    worktrees.push(
+      Object.freeze({
+        path: canonicalWorktreePath(current.path),
+        headCommitSha: current.headCommitSha,
+        branch: current.branch ?? null,
+      }),
+    );
+    current = {};
+  };
+  for (const field of fields) {
+    if (field === "") {
+      finish();
+    } else if (field.startsWith("worktree ")) {
+      if (current.path !== undefined) {
+        throw gitError(GIT_ERROR_CODES.unsupportedGit);
+      }
+      current.path = field.slice("worktree ".length);
+    } else if (field.startsWith("HEAD ")) {
+      current.headCommitSha = field.slice("HEAD ".length);
+    } else if (field.startsWith("branch refs/heads/")) {
+      current.branch = field.slice("branch refs/heads/".length);
+    } else if (
+      field === "detached" ||
+      field === "bare" ||
+      field.startsWith("locked") ||
+      field.startsWith("prunable")
+    ) {
+      continue;
+    } else {
+      throw gitError(GIT_ERROR_CODES.unsupportedGit);
+    }
+  }
+  finish();
+  return Object.freeze(
+    worktrees.sort((left, right) =>
+      left.path < right.path ? -1 : left.path > right.path ? 1 : 0,
+    ),
+  );
+}
+
 class NativeGitRepository implements GitRepository {
   readonly registration: RepositoryRegistration;
 
@@ -1154,6 +1227,284 @@ class NativeGitRepository implements GitRepository {
         );
       }
       return Object.freeze({ name: branchName, commitSha: startCommitSha });
+    } catch (error) {
+      throw stableFailure(error);
+    }
+  }
+
+  async assertCommitExists(commitSha: string): Promise<void> {
+    try {
+      await this.assertOperationSafety();
+      await this.assertCommit(commitSha);
+    } catch (error) {
+      throw stableFailure(error);
+    }
+  }
+
+  async getBranchCommit(branchName: string): Promise<string | null> {
+    try {
+      await this.assertOperationSafety();
+      await assertBranchName(
+        this.runner,
+        branchName,
+        GIT_ERROR_CODES.branchInvalid,
+      );
+      const ref = `refs/heads/${branchName}`;
+      const exists = await this.runner.run(
+        ["show-ref", "--verify", "--quiet", ref],
+        { repositoryRoot: this.registration.identity.workingTreeRoot },
+      );
+      if (exists.status === 1) {
+        return null;
+      }
+      if (exists.status !== 0) {
+        throw gitError(GIT_ERROR_CODES.operationFailed);
+      }
+      const result = await this.runner.run(
+        ["show-ref", "--verify", "--hash", ref],
+        {
+          repositoryRoot: this.registration.identity.workingTreeRoot,
+        },
+      );
+      const commitSha = singleLine(
+        expectSuccess(result, GIT_ERROR_CODES.operationFailed),
+        GIT_ERROR_CODES.operationFailed,
+      );
+      if (!isExactSha(commitSha, this.registration.objectFormat)) {
+        throw gitError(GIT_ERROR_CODES.unsupportedGit);
+      }
+      return commitSha;
+    } catch (error) {
+      throw stableFailure(error);
+    }
+  }
+
+  async listWorktrees(): Promise<readonly RegisteredWorktree[]> {
+    try {
+      await this.assertOperationSafety();
+      return parseWorktreeList(
+        expectSuccess(
+          await this.runner.run(["worktree", "list", "--porcelain", "-z"], {
+            repositoryRoot: this.registration.identity.workingTreeRoot,
+          }),
+          GIT_ERROR_CODES.unsupportedGit,
+        ),
+        this.registration.objectFormat,
+      );
+    } catch (error) {
+      throw stableFailure(error);
+    }
+  }
+
+  async hasUnknownContent(): Promise<boolean> {
+    try {
+      await this.assertOperationSafety();
+      const fields = nulFields(
+        expectSuccess(
+          await this.runner.run(["ls-files", "-z", "--others", "--"], {
+            repositoryRoot: this.registration.identity.workingTreeRoot,
+          }),
+          GIT_ERROR_CODES.operationFailed,
+        ),
+      );
+      for (const field of fields) {
+        normalizeGitPath(this.registration.identity.workingTreeRoot, field);
+      }
+      return fields.length !== 0;
+    } catch (error) {
+      throw stableFailure(error);
+    }
+  }
+
+  async addWorktree(
+    path: string,
+    branchName: string,
+  ): Promise<RegisteredWorktree> {
+    try {
+      await this.assertOperationSafety();
+      const normalizedPath = canonicalWorktreePath(path);
+      await assertBranchName(
+        this.runner,
+        branchName,
+        GIT_ERROR_CODES.branchInvalid,
+      );
+      const branchCommit = await this.getBranchCommit(branchName);
+      if (branchCommit === null) {
+        throw gitError(GIT_ERROR_CODES.branchMissing);
+      }
+      const result = await this.runner.run(
+        ["worktree", "add", "--", normalizedPath, branchName],
+        { repositoryRoot: this.registration.identity.workingTreeRoot },
+      );
+      if (result.status !== 0) {
+        throw gitError(GIT_ERROR_CODES.worktreeCollision);
+      }
+      const created = (await this.listWorktrees()).find(
+        (worktree) => worktree.path === normalizedPath,
+      );
+      if (
+        created === undefined ||
+        created.branch !== branchName ||
+        created.headCommitSha !== branchCommit
+      ) {
+        throw gitError(GIT_ERROR_CODES.operationFailed);
+      }
+      return created;
+    } catch (error) {
+      throw stableFailure(error);
+    }
+  }
+
+  async removeWorktree(
+    path: string,
+    expectedBranchName: string,
+    expectedHeadCommitSha: string,
+  ): Promise<void> {
+    try {
+      await this.assertOperationSafety();
+      const normalizedPath = canonicalWorktreePath(path);
+      await assertBranchName(
+        this.runner,
+        expectedBranchName,
+        GIT_ERROR_CODES.branchInvalid,
+      );
+      if (!isExactSha(expectedHeadCommitSha, this.registration.objectFormat)) {
+        throw gitError(GIT_ERROR_CODES.shaInvalid);
+      }
+      const registrations = await this.listWorktrees();
+      const pathRegistrations = registrations.filter(
+        (worktree) => worktree.path === normalizedPath,
+      );
+      const branchRegistrations = registrations.filter(
+        (worktree) => worktree.branch === expectedBranchName,
+      );
+      if (
+        pathRegistrations.length !== 1 ||
+        branchRegistrations.length !== 1 ||
+        pathRegistrations[0]?.branch !== expectedBranchName ||
+        pathRegistrations[0]?.headCommitSha !== expectedHeadCommitSha ||
+        branchRegistrations[0]?.path !== normalizedPath
+      ) {
+        throw gitError(GIT_ERROR_CODES.worktreeCollision);
+      }
+      await this.assertWorktreeRemovalIdentity(
+        normalizedPath,
+        expectedBranchName,
+        expectedHeadCommitSha,
+      );
+      expectSuccess(
+        await this.runner.run(["worktree", "remove", "--", normalizedPath], {
+          repositoryRoot: this.registration.identity.workingTreeRoot,
+        }),
+        GIT_ERROR_CODES.operationFailed,
+      );
+      if (
+        (await this.listWorktrees()).some(
+          (worktree) => worktree.path === normalizedPath,
+        )
+      ) {
+        throw gitError(GIT_ERROR_CODES.operationFailed);
+      }
+    } catch (error) {
+      throw stableFailure(error);
+    }
+  }
+
+  private async assertWorktreeRemovalIdentity(
+    path: string,
+    expectedBranchName: string,
+    expectedHeadCommitSha: string,
+  ): Promise<void> {
+    try {
+      const root = await canonicalDirectory(
+        singleLine(
+          expectSuccess(
+            await this.runner.run(
+              ["rev-parse", "--path-format=absolute", "--show-toplevel"],
+              { repositoryRoot: path },
+            ),
+            GIT_ERROR_CODES.worktreeCollision,
+          ),
+          GIT_ERROR_CODES.worktreeCollision,
+        ),
+      );
+      const commonGitDirectory = await canonicalDirectory(
+        singleLine(
+          expectSuccess(
+            await this.runner.run(
+              ["rev-parse", "--path-format=absolute", "--git-common-dir"],
+              { repositoryRoot: path },
+            ),
+            GIT_ERROR_CODES.worktreeCollision,
+          ),
+          GIT_ERROR_CODES.worktreeCollision,
+        ),
+      );
+      const headCommitSha = singleLine(
+        expectSuccess(
+          await this.runner.run(["rev-parse", "--verify", "HEAD"], {
+            repositoryRoot: path,
+          }),
+          GIT_ERROR_CODES.worktreeCollision,
+        ),
+        GIT_ERROR_CODES.worktreeCollision,
+      );
+      const branchName = singleLine(
+        expectSuccess(
+          await this.runner.run(
+            ["symbolic-ref", "--quiet", "--short", "HEAD"],
+            { repositoryRoot: path },
+          ),
+          GIT_ERROR_CODES.worktreeCollision,
+        ),
+        GIT_ERROR_CODES.worktreeCollision,
+      );
+      if (
+        root !== path ||
+        commonGitDirectory !== this.registration.identity.commonGitDirectory ||
+        headCommitSha !== expectedHeadCommitSha ||
+        branchName !== expectedBranchName
+      ) {
+        throw gitError(GIT_ERROR_CODES.worktreeCollision);
+      }
+    } catch {
+      throw gitError(GIT_ERROR_CODES.worktreeCollision);
+    }
+  }
+
+  async deleteBranch(
+    branchName: string,
+    expectedCommitSha: string,
+  ): Promise<void> {
+    try {
+      await this.assertOperationSafety();
+      await assertBranchName(
+        this.runner,
+        branchName,
+        GIT_ERROR_CODES.branchInvalid,
+      );
+      await this.assertCommit(expectedCommitSha);
+      if (branchName === this.registration.defaultBranch) {
+        throw gitError(GIT_ERROR_CODES.branchInvalid);
+      }
+      const ref = `refs/heads/${branchName}`;
+      const current = await this.getBranchCommit(branchName);
+      if (current !== expectedCommitSha) {
+        throw gitError(GIT_ERROR_CODES.branchMissing);
+      }
+      if (
+        (await this.listWorktrees()).some(
+          (worktree) => worktree.branch === branchName,
+        )
+      ) {
+        throw gitError(GIT_ERROR_CODES.worktreeCollision);
+      }
+      expectSuccess(
+        await this.runner.run(["update-ref", "-d", ref, expectedCommitSha], {
+          repositoryRoot: this.registration.identity.workingTreeRoot,
+        }),
+        GIT_ERROR_CODES.operationFailed,
+      );
     } catch (error) {
       throw stableFailure(error);
     }
@@ -1541,6 +1892,12 @@ async function probeCapabilities(
     }),
     GIT_ERROR_CODES.unsupportedGit,
   );
+  expectSuccess(
+    await runner.run(["worktree", "list", "--porcelain", "-z"], {
+      repositoryRoot: root,
+    }),
+    GIT_ERROR_CODES.unsupportedGit,
+  );
 }
 
 export async function registerGitRepository(
@@ -1702,4 +2059,5 @@ export async function registerGitRepository(
 export const nativeGitInternals = Object.freeze({
   assertSupportedPlatform,
   parseStatus,
+  parseWorktreeList,
 });

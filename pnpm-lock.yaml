@@ -48,9 +48,15 @@ importers:
       '@blackbox/application':
         specifier: workspace:*
         version: link:../../packages/application
+      '@blackbox/config':
+        specifier: workspace:*
+        version: link:../../packages/config
       '@blackbox/persistence':
         specifier: workspace:*
         version: link:../../packages/persistence
+      '@blackbox/worktrees':
+        specifier: workspace:*
+        version: link:../../packages/worktrees
       fastify:
         specifier: 5.10.0
         version: 5.10.0
@@ -92,6 +98,9 @@ importers:
       '@blackbox/persistence':
         specifier: workspace:*
         version: link:../persistence
+      '@blackbox/worktrees':
+        specifier: workspace:*
+        version: link:../worktrees
 
   packages/cli: {}
 
@@ -115,9 +124,21 @@ importers:
       '@blackbox/contracts':
         specifier: workspace:*
         version: link:../contracts
+      '@blackbox/worktrees':
+        specifier: workspace:*
+        version: link:../worktrees
       postgres:
         specifier: 3.4.9
         version: 3.4.9
+
+  packages/worktrees:
+    dependencies:
+      '@blackbox/config':
+        specifier: workspace:*
+        version: link:../config
+      '@blackbox/git':
+        specifier: workspace:*
+        version: link:../git
 
 packages:
 

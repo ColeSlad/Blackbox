@@ -5,6 +5,7 @@ import type {
   LifecycleRunGraph,
   LifecycleUnitOfWork,
 } from "@blackbox/persistence";
+import type { AssignmentWorktreeV1 } from "@blackbox/worktrees";
 import { describe, expect, it } from "vitest";
 
 import { APPLICATION_ERROR_CODES } from "./errors.js";
@@ -15,6 +16,7 @@ interface FakeState {
   tickets: TicketV1[];
   assignments: AgentAssignmentV1[];
   outbox: LifecycleOutboxRecord[];
+  worktree: AssignmentWorktreeV1 | null;
 }
 
 class FakeUnitOfWork implements LifecycleUnitOfWork {
@@ -37,6 +39,12 @@ class FakeUnitOfWork implements LifecycleUnitOfWork {
             (assignment) => assignment.run_id === runId,
           ),
         };
+  }
+
+  async readAssignmentWorktree(
+    worktreeId: string,
+  ): Promise<AssignmentWorktreeV1 | null> {
+    return this.state.worktree?.id === worktreeId ? this.state.worktree : null;
   }
 
   async insertRun(record: RunV1): Promise<void> {
@@ -119,7 +127,13 @@ class FakeUnitOfWork implements LifecycleUnitOfWork {
 }
 
 class FakePersistence implements LifecyclePersistence {
-  state: FakeState = { runs: [], tickets: [], assignments: [], outbox: [] };
+  state: FakeState = {
+    runs: [],
+    tickets: [],
+    assignments: [],
+    outbox: [],
+    worktree: null,
+  };
   failEventName?: string;
   readonly attemptedEventNames: string[] = [];
 
@@ -187,6 +201,67 @@ function createHarness(times = ["2026-07-19T20:00:00.000Z"]) {
 }
 
 describe("LifecycleService", () => {
+  it("rejects uppercase repository and agent body identifiers before persistence", async () => {
+    const uppercase = "AAAAAAAA-0000-4000-8000-000000000001";
+    const rejectedRun = createHarness();
+    await expect(
+      rejectedRun.service.createRun({ ...input, repository_id: uppercase }),
+    ).rejects.toMatchObject({ code: APPLICATION_ERROR_CODES.INVALID_INPUT });
+    expect(rejectedRun.persistence.state).toEqual({
+      runs: [],
+      tickets: [],
+      assignments: [],
+      outbox: [],
+      worktree: null,
+    });
+
+    const assignmentHarness = createHarness();
+    const created = await assignmentHarness.service.createRun(input);
+    const root = created.tickets.find(
+      (ticket) => ticket.external_key === "root",
+    )!;
+    await assignmentHarness.service.startRun(created.run.id);
+    await assignmentHarness.service.readyTicket(created.run.id, root.id);
+    const before = structuredClone(assignmentHarness.persistence.state);
+    await expect(
+      assignmentHarness.service.reserveAssignment(created.run.id, root.id, {
+        agent_id: uppercase,
+      }),
+    ).rejects.toMatchObject({ code: APPLICATION_ERROR_CODES.INVALID_INPUT });
+    expect(assignmentHarness.persistence.state).toEqual(before);
+  });
+
+  it("rejects uppercase generated aggregate and event identifiers atomically", async () => {
+    const uppercase = "AAAAAAAA-0000-4000-8000-000000000001";
+    const aggregatePersistence = new FakePersistence();
+    const aggregateService = new LifecycleService(aggregatePersistence, {
+      identifier: () => uppercase,
+    });
+    await expect(aggregateService.createRun(input)).rejects.toMatchObject({
+      code: APPLICATION_ERROR_CODES.INVALID_INPUT,
+    });
+    expect(aggregatePersistence.state.runs).toHaveLength(0);
+    expect(aggregatePersistence.state.outbox).toHaveLength(0);
+
+    const eventPersistence = new FakePersistence();
+    const identifiers = [
+      "00000000-0000-4000-8000-000000000001",
+      "00000000-0000-4000-8000-000000000002",
+      "00000000-0000-4000-8000-000000000003",
+      uppercase,
+    ];
+    const eventService = new LifecycleService(eventPersistence, {
+      identifier: () => identifiers.shift() ?? uppercase,
+    });
+    await expect(eventService.createRun(input)).rejects.toMatchObject({
+      code: APPLICATION_ERROR_CODES.INVALID_INPUT,
+    });
+    expect(eventPersistence.state.runs).toHaveLength(0);
+    expect(eventPersistence.state.tickets).toHaveLength(0);
+    expect(eventPersistence.state.outbox).toHaveLength(0);
+    expect(eventPersistence.attemptedEventNames).toHaveLength(0);
+  });
+
   it("creates a graph atomically with deterministic IDs, ordering, and one event per aggregate", async () => {
     const { persistence, service, clockReads } = createHarness();
 
@@ -270,6 +345,7 @@ describe("LifecycleService", () => {
       tickets: [],
       assignments: [],
       outbox: [],
+      worktree: null,
     });
   });
 
@@ -598,5 +674,105 @@ describe("LifecycleService", () => {
     ).rejects.toMatchObject({
       code: APPLICATION_ERROR_CODES.INVALID_TRANSITION,
     });
+  });
+
+  it("atomically starts one ticket and assignment only after exact active-worktree verification", async () => {
+    const { persistence, service } = createHarness(
+      Array.from(
+        { length: 8 },
+        (_, index) => `2026-07-19T20:0${index}:00.000Z`,
+      ),
+    );
+    const created = await service.createRun(input);
+    const root = created.tickets.find(
+      (ticket) => ticket.external_key === "root",
+    )!;
+    await service.startRun(created.run.id);
+    await service.readyTicket(created.run.id, root.id);
+    const reserved = await service.reserveAssignment(created.run.id, root.id, {
+      agent_id: "20000000-0000-4000-8000-000000000001",
+    });
+    const assignment = reserved.assignments[0]!;
+    const worktreeId = "60000000-0000-4000-8000-000000000001";
+    persistence.state.assignments[0] = {
+      ...assignment,
+      worktree_id: worktreeId,
+    };
+    persistence.state.worktree = {
+      schema_version: 1,
+      id: worktreeId,
+      repository_id: created.run.repository_id,
+      run_id: created.run.id,
+      ticket_id: root.id,
+      assignment_id: assignment.id,
+      working_tree_root: "/repository",
+      common_git_directory: "/repository/.git",
+      default_branch: "main",
+      base_commit_sha: created.run.base_commit_sha,
+      managed_path: "/managed/worktree",
+      branch_name: `blackbox/worktree/${created.run.id}/${root.id}/${assignment.id}`,
+      status: "active",
+      retention_status: "releasable",
+      operation_token: "70000000-0000-4000-8000-000000000001",
+      operation_stage: "active",
+      failure_disposition: "none",
+      created_at: "2026-07-19T20:03:00.000Z",
+      updated_at: "2026-07-19T20:03:00.000Z",
+      activated_at: "2026-07-19T20:03:00.000Z",
+      removed_at: null,
+    };
+    const verified: string[] = [];
+    const guarded = new LifecycleService(persistence, {
+      clock: () => "2026-07-19T21:00:00.000Z",
+      identifier: identifierFactory(),
+      worktreeVerifier: {
+        verifyActiveRecord: async (record) => {
+          verified.push(record.id);
+        },
+      },
+    });
+    const eventsBefore = persistence.state.outbox.length;
+
+    const started = await guarded.startTicketAssignment(
+      created.run.id,
+      root.id,
+      assignment.id,
+    );
+
+    expect(verified).toEqual([worktreeId]);
+    expect(started.tickets.find(({ id }) => id === root.id)?.status).toBe(
+      "running",
+    );
+    expect(started.assignments[0]?.status).toBe("active");
+    expect(
+      persistence.state.outbox
+        .slice(eventsBefore)
+        .map(({ aggregate_type, event_name }) => [aggregate_type, event_name]),
+    ).toEqual([
+      ["assignment", "assignment.status_changed"],
+      ["ticket", "ticket.status_changed"],
+    ]);
+  });
+
+  it("leaves lifecycle state unchanged when worktree verification fails", async () => {
+    const { persistence, service } = createHarness();
+    const created = await service.createRun(input);
+    const root = created.tickets.find(
+      (ticket) => ticket.external_key === "root",
+    )!;
+    await service.startRun(created.run.id);
+    await service.readyTicket(created.run.id, root.id);
+    const reserved = await service.reserveAssignment(created.run.id, root.id, {
+      agent_id: "20000000-0000-4000-8000-000000000001",
+    });
+    const assignment = reserved.assignments[0]!;
+    const before = structuredClone(persistence.state);
+
+    await expect(
+      new LifecycleService(persistence, {
+        worktreeVerifier: { verifyActiveRecord: async () => undefined },
+      }).startTicketAssignment(created.run.id, root.id, assignment.id),
+    ).rejects.toMatchObject({ code: APPLICATION_ERROR_CODES.CONFLICT });
+    expect(persistence.state).toEqual(before);
   });
 });

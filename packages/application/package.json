@@ -19,6 +19,7 @@
   "dependencies": {
     "@blackbox/contracts": "workspace:*",
     "@blackbox/domain": "workspace:*",
-    "@blackbox/persistence": "workspace:*"
+    "@blackbox/persistence": "workspace:*",
+    "@blackbox/worktrees": "workspace:*"
   }
 }

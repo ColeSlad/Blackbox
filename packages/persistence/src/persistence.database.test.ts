@@ -15,6 +15,10 @@ import {
   type TicketV1,
   type TransactionV1,
 } from "@blackbox/contracts";
+import type {
+  AssignmentWorktreeV1,
+  WorktreeOutboxRecord,
+} from "@blackbox/worktrees";
 import postgres from "postgres";
 import { describe, expect, it } from "vitest";
 
@@ -90,6 +94,103 @@ async function withTestDatabase<T>(
   }
 }
 
+type TestPersistence = Awaited<ReturnType<typeof createPostgresPersistence>>;
+
+interface WorktreeDatabaseFixture {
+  readonly repositoryId: string;
+  readonly runId: string;
+  readonly baseCommitSha: string;
+  readonly occurredAt: string;
+  readonly assignments: readonly {
+    readonly ticketId: string;
+    readonly assignmentId: string;
+  }[];
+}
+
+async function seedWorktreeAssignments(
+  persistence: TestPersistence,
+  count: number,
+): Promise<WorktreeDatabaseFixture> {
+  const repositoryId = randomUUID();
+  const runId = randomUUID();
+  const baseCommitSha = "a".repeat(40);
+  const occurredAt = "2026-07-19T20:00:00.000Z";
+  await persistence.sql`
+    INSERT INTO runs (
+      id, schema_version, repository_id, title, base_commit_sha, status,
+      configuration_version, created_at, started_at
+    ) VALUES (
+      ${runId}, 1, ${repositoryId}, 'Run', ${baseCommitSha}, 'running',
+      1, ${occurredAt}, ${occurredAt}
+    )
+  `;
+  const assignments: { ticketId: string; assignmentId: string }[] = [];
+  for (let index = 0; index < count; index += 1) {
+    const ticketId = randomUUID();
+    const assignmentId = randomUUID();
+    await persistence.sql`
+      INSERT INTO tickets (
+        id, schema_version, run_id, external_key, title, description,
+        status, acceptance_criteria, manual_verification_steps
+      ) VALUES (
+        ${ticketId}, 1, ${runId}, ${`T${index + 1}`}, 'Ticket',
+        'Description', 'ready', ARRAY['pass'], ARRAY['inspect']
+      )
+    `;
+    await persistence.sql`
+      INSERT INTO assignments (
+        id, schema_version, run_id, ticket_id, agent_id, status, assigned_at
+      ) VALUES (
+        ${assignmentId}, 1, ${runId}, ${ticketId}, ${randomUUID()},
+        'assigned', ${occurredAt}
+      )
+    `;
+    assignments.push({ ticketId, assignmentId });
+  }
+  return {
+    repositoryId,
+    runId,
+    baseCommitSha,
+    occurredAt,
+    assignments,
+  };
+}
+
+function worktreeInput(
+  fixture: WorktreeDatabaseFixture,
+  assignmentIndex: number,
+  overrides: Partial<AssignmentWorktreeV1> = {},
+): AssignmentWorktreeV1 {
+  const assignment = fixture.assignments[assignmentIndex];
+  if (assignment === undefined) {
+    throw new Error("Missing assignment fixture.");
+  }
+  return {
+    schema_version: 1,
+    id: randomUUID(),
+    repository_id: fixture.repositoryId,
+    run_id: fixture.runId,
+    ticket_id: assignment.ticketId,
+    assignment_id: assignment.assignmentId,
+    working_tree_root: "/repository",
+    common_git_directory: "/repository/.git",
+    default_branch: "main",
+    base_commit_sha: "",
+    managed_path: `/managed/${assignment.assignmentId}`,
+    branch_name: `blackbox/worktree/${fixture.runId}/${assignment.ticketId}/${assignment.assignmentId}`,
+    status: "provisioning",
+    retention_status: "releasable",
+    operation_token: randomUUID(),
+    operation_stage: "reserved",
+    failure_disposition: "none",
+    created_at: fixture.occurredAt,
+    updated_at: fixture.occurredAt,
+    activated_at: null,
+    removed_at: null,
+    ...overrides,
+  };
+}
+
 describe("required PostgreSQL migration integration", () => {
   it("fails rather than skipping when the configured PostgreSQL service is unavailable", async () => {
     const unavailableUrl =
@@ -107,6 +208,7 @@ describe("required PostgreSQL migration integration", () => {
           "0001",
           "0002",
           "0003",
+          "0004",
         ]);
         const tables = await persistence.sql`
           SELECT table_name
@@ -115,6 +217,7 @@ describe("required PostgreSQL migration integration", () => {
           ORDER BY table_name
         `;
         expect(tables.map(({ table_name }) => table_name)).toEqual([
+          "assignment_worktrees",
           "assignments",
           "intents",
           "lifecycle_outbox",
@@ -152,6 +255,7 @@ describe("required PostgreSQL migration integration", () => {
         await expect(migrateDatabase(persistence.sql)).resolves.toEqual([
           "0002",
           "0003",
+          "0004",
         ]);
       } finally {
         await persistence.close();
@@ -182,6 +286,7 @@ describe("required PostgreSQL migration integration", () => {
         }
         await expect(migrateDatabase(persistence.sql)).resolves.toEqual([
           "0003",
+          "0004",
         ]);
         const tables = await persistence.sql`
           SELECT table_name
@@ -294,6 +399,7 @@ describe("required PostgreSQL migration integration", () => {
         expect(records.map(({ identifier }) => identifier)).toEqual([
           "0002",
           "0003",
+          "0004",
         ]);
       } finally {
         await persistence.close();
@@ -454,6 +560,670 @@ describe("required PostgreSQL repository integration", () => {
           code: PERSISTENCE_ERROR_CODES.QUERY_FAILED,
         });
         expect(String(queryFailure)).not.toContain(unsafeValue);
+      } finally {
+        await persistence.close();
+      }
+    });
+  });
+
+  it("serializes same-assignment reservations while allowing different assignments", async () => {
+    await withTestDatabase(async (url) => {
+      const persistence = await createPostgresPersistence(url);
+      try {
+        await migrateDatabase(persistence.sql);
+        const fixture = await seedWorktreeAssignments(persistence, 3);
+        const first = worktreeInput(fixture, 0);
+        const competing = worktreeInput(fixture, 0);
+        const sameAssignment = await Promise.all([
+          persistence.worktrees.reserveProvisioning(first),
+          persistence.worktrees.reserveProvisioning(competing),
+        ]);
+        expect(sameAssignment.filter(({ acquired }) => acquired)).toHaveLength(
+          1,
+        );
+        expect(new Set(sameAssignment.map(({ record }) => record.id))).toEqual(
+          new Set([first.id]),
+        );
+
+        const differentAssignments = await Promise.all([
+          persistence.worktrees.reserveProvisioning(worktreeInput(fixture, 1)),
+          persistence.worktrees.reserveProvisioning(worktreeInput(fixture, 2)),
+        ]);
+        expect(differentAssignments.every(({ acquired }) => acquired)).toBe(
+          true,
+        );
+        expect(
+          new Set(
+            differentAssignments.map(({ record }) => record.assignment_id),
+          ).size,
+        ).toBe(2);
+      } finally {
+        await persistence.close();
+      }
+    });
+  });
+
+  it("enforces resource uniqueness, guarded stages, and retry ownership", async () => {
+    await withTestDatabase(async (url) => {
+      const persistence = await createPostgresPersistence(url);
+      try {
+        await migrateDatabase(persistence.sql);
+        const fixture = await seedWorktreeAssignments(persistence, 8);
+        const original = worktreeInput(fixture, 0);
+        await persistence.worktrees.reserveProvisioning(original);
+
+        for (const duplicate of [
+          worktreeInput(fixture, 1, { managed_path: original.managed_path }),
+          worktreeInput(fixture, 2, { branch_name: original.branch_name }),
+          worktreeInput(fixture, 3, {
+            operation_token: original.operation_token,
+          }),
+        ]) {
+          await expect(
+            persistence.worktrees.reserveProvisioning(duplicate),
+          ).rejects.toMatchObject({
+            code: PERSISTENCE_ERROR_CODES.CONSTRAINT_VIOLATION,
+          });
+        }
+        const idempotent = await persistence.worktrees.reserveProvisioning({
+          ...original,
+          id: randomUUID(),
+          operation_token: randomUUID(),
+        });
+        expect(idempotent).toMatchObject({
+          acquired: false,
+          record: { id: original.id },
+        });
+
+        await expect(
+          persistence.worktrees.updateOperationStage(
+            original.id,
+            original.operation_token,
+            "reserved",
+            "active",
+            fixture.occurredAt,
+          ),
+        ).rejects.toMatchObject({
+          code: PERSISTENCE_ERROR_CODES.CONSTRAINT_VIOLATION,
+        });
+        expect(
+          await persistence.worktrees.readByAssignment(
+            fixture.runId,
+            original.ticket_id,
+            original.assignment_id,
+          ),
+        ).toMatchObject({ record: { operation_stage: "reserved" } });
+
+        await persistence.worktrees.failProvisioning(
+          original.id,
+          original.operation_token,
+          "none",
+          fixture.occurredAt,
+        );
+        await persistence.sql`
+          UPDATE assignments SET status = 'released', released_at = ${fixture.occurredAt}
+          WHERE id = ${original.assignment_id}
+        `;
+        await expect(
+          persistence.worktrees.retryProvisioning(
+            original.id,
+            original.operation_token,
+            randomUUID(),
+            fixture.occurredAt,
+            fixture.occurredAt,
+          ),
+        ).rejects.toMatchObject({
+          code: PERSISTENCE_ERROR_CODES.QUERY_FAILED,
+        });
+        expect(
+          await persistence.worktrees.readByAssignment(
+            fixture.runId,
+            original.ticket_id,
+            original.assignment_id,
+          ),
+        ).toMatchObject({
+          record: {
+            status: "failed",
+            operation_token: original.operation_token,
+          },
+        });
+
+        const retryable = worktreeInput(fixture, 4);
+        await persistence.worktrees.reserveProvisioning(retryable);
+        await persistence.worktrees.failProvisioning(
+          retryable.id,
+          retryable.operation_token,
+          "none",
+          fixture.occurredAt,
+        );
+        const retryTokens = [randomUUID(), randomUUID()];
+        const retried = await Promise.all([
+          persistence.worktrees.retryProvisioning(
+            retryable.id,
+            retryable.operation_token,
+            retryTokens[0]!,
+            fixture.occurredAt,
+            fixture.occurredAt,
+          ),
+          persistence.worktrees.retryProvisioning(
+            retryable.id,
+            retryable.operation_token,
+            retryTokens[1]!,
+            fixture.occurredAt,
+            fixture.occurredAt,
+          ),
+        ]);
+        expect(retried.filter(({ acquired }) => acquired)).toHaveLength(1);
+        expect(retryTokens).toContain(
+          retried.find(({ acquired }) => acquired)?.record.operation_token,
+        );
+
+        const cleanupRequired = worktreeInput(fixture, 6);
+        let cleanupStage = (
+          await persistence.worktrees.reserveProvisioning(cleanupRequired)
+        ).record;
+        for (const target of [
+          "branch_creating",
+          "worktree_creating",
+          "verifying",
+        ] as const) {
+          cleanupStage = await persistence.worktrees.updateOperationStage(
+            cleanupRequired.id,
+            cleanupRequired.operation_token,
+            cleanupStage.operation_stage,
+            target,
+            fixture.occurredAt,
+          );
+        }
+        await persistence.worktrees.failProvisioning(
+          cleanupRequired.id,
+          cleanupRequired.operation_token,
+          "provision_cleanup_required",
+          fixture.occurredAt,
+        );
+        const cleanupToken = randomUUID();
+        const cleanupRetry = await persistence.worktrees.retryProvisioning(
+          cleanupRequired.id,
+          cleanupRequired.operation_token,
+          cleanupToken,
+          fixture.occurredAt,
+          fixture.occurredAt,
+        );
+        expect(cleanupRetry).toMatchObject({
+          acquired: true,
+          record: {
+            status: "provisioning",
+            operation_token: cleanupToken,
+            operation_stage: "verifying",
+            failure_disposition: "provision_cleanup_required",
+          },
+        });
+        await expect(
+          persistence.worktrees.updateOperationStage(
+            cleanupRequired.id,
+            cleanupToken,
+            "verifying",
+            "reserved",
+            fixture.occurredAt,
+          ),
+        ).resolves.toMatchObject({
+          operation_stage: "reserved",
+          failure_disposition: "none",
+        });
+
+        const wrongOwnership = worktreeInput(fixture, 5, {
+          repository_id: randomUUID(),
+        });
+        await expect(
+          persistence.worktrees.reserveProvisioning(wrongOwnership),
+        ).rejects.toMatchObject({
+          code: PERSISTENCE_ERROR_CODES.QUERY_FAILED,
+        });
+
+        const foreignAssignment = fixture.assignments[7]!;
+        await expect(
+          persistence.sql`
+            INSERT INTO assignment_worktrees (
+              id, schema_version, repository_id, run_id, ticket_id,
+              assignment_id, working_tree_root, common_git_directory,
+              default_branch, base_commit_sha, managed_path, branch_name,
+              status, retention_status, operation_token, operation_stage,
+              failure_disposition, created_at, updated_at
+            ) VALUES (
+              ${randomUUID()}, 1, ${fixture.repositoryId}, ${fixture.runId},
+              ${original.ticket_id}, ${foreignAssignment.assignmentId},
+              '/repository', '/repository/.git', 'main',
+              ${fixture.baseCommitSha}, ${`/managed/fk-${randomUUID()}`},
+              ${`blackbox/worktree/fk/${randomUUID()}`}, 'provisioning',
+              'releasable', ${randomUUID()}, 'reserved', 'none',
+              ${fixture.occurredAt}, ${fixture.occurredAt}
+            )
+          `,
+        ).rejects.toMatchObject({ code: "23503" });
+        await expect(
+          persistence.sql`
+            INSERT INTO assignment_worktrees (
+              id, schema_version, repository_id, run_id, ticket_id,
+              assignment_id, working_tree_root, common_git_directory,
+              default_branch, base_commit_sha, managed_path, branch_name,
+              status, retention_status, operation_token, operation_stage,
+              failure_disposition, created_at, updated_at
+            ) VALUES (
+              ${randomUUID()}, 1, ${randomUUID()}, ${fixture.runId},
+              ${foreignAssignment.ticketId}, ${foreignAssignment.assignmentId},
+              '/repository', '/repository/.git', 'main',
+              ${fixture.baseCommitSha}, ${`/managed/fk-${randomUUID()}`},
+              ${`blackbox/worktree/fk/${randomUUID()}`}, 'provisioning',
+              'releasable', ${randomUUID()}, 'reserved', 'none',
+              ${fixture.occurredAt}, ${fixture.occurredAt}
+            )
+          `,
+        ).rejects.toMatchObject({ code: "23503" });
+      } finally {
+        await persistence.close();
+      }
+    });
+  });
+
+  it("rejects ownership drift introduced after activation reservation", async () => {
+    await withTestDatabase(async (url) => {
+      const persistence = await createPostgresPersistence(url);
+      try {
+        await migrateDatabase(persistence.sql);
+        const fixture = await seedWorktreeAssignments(persistence, 1);
+        const input = worktreeInput(fixture, 0);
+        let staged = (await persistence.worktrees.reserveProvisioning(input))
+          .record;
+        for (const target of [
+          "branch_creating",
+          "worktree_creating",
+          "verifying",
+          "activating",
+        ] as const) {
+          staged = await persistence.worktrees.updateOperationStage(
+            input.id,
+            input.operation_token,
+            staged.operation_stage,
+            target,
+            fixture.occurredAt,
+          );
+        }
+        await persistence.sql`
+          UPDATE runs SET base_commit_sha = ${"b".repeat(40)}
+          WHERE id = ${fixture.runId}
+        `;
+
+        await expect(
+          persistence.worktrees.activate(
+            input.id,
+            input.operation_token,
+            fixture.occurredAt,
+            {
+              schema_version: 1,
+              event_id: randomUUID(),
+              aggregate_type: "worktree",
+              aggregate_id: input.id,
+              run_id: fixture.runId,
+              event_name: "worktree.created",
+              occurred_at: fixture.occurredAt,
+              payload: { assignment_id: input.assignment_id },
+            },
+          ),
+        ).rejects.toMatchObject({ code: PERSISTENCE_ERROR_CODES.QUERY_FAILED });
+        expect(
+          await persistence.worktrees.readByAssignment(
+            fixture.runId,
+            input.ticket_id,
+            input.assignment_id,
+          ),
+        ).toMatchObject({
+          ownership: { assignment_worktree_id: null },
+          record: { status: "provisioning", operation_stage: "activating" },
+        });
+        const events = await persistence.sql`
+          SELECT event_id FROM lifecycle_outbox
+          WHERE aggregate_type = 'worktree' AND aggregate_id = ${input.id}
+        `;
+        expect(events).toHaveLength(0);
+      } finally {
+        await persistence.close();
+      }
+    });
+  });
+
+  it("rolls back worktree state when outbox persistence fails", async () => {
+    await withTestDatabase(async (url) => {
+      const persistence = await createPostgresPersistence(url);
+      try {
+        await migrateDatabase(persistence.sql);
+        const fixture = await seedWorktreeAssignments(persistence, 1);
+        const input = worktreeInput(fixture, 0);
+        let staged = (await persistence.worktrees.reserveProvisioning(input))
+          .record;
+        for (const target of [
+          "branch_creating",
+          "worktree_creating",
+          "verifying",
+          "activating",
+        ] as const) {
+          staged = await persistence.worktrees.updateOperationStage(
+            input.id,
+            input.operation_token,
+            staged.operation_stage,
+            target,
+            fixture.occurredAt,
+          );
+        }
+        const duplicateEventId = randomUUID();
+        await persistence.sql`
+          INSERT INTO lifecycle_outbox (
+            event_id, schema_version, aggregate_type, aggregate_id, run_id,
+            event_name, occurred_at, payload
+          ) VALUES (
+            ${duplicateEventId}, 1, 'run', ${fixture.runId}, ${fixture.runId},
+            'run.created', ${fixture.occurredAt},
+            ${persistence.sql.json({ source: "test" })}
+          )
+        `;
+        const event = (
+          eventId: string,
+          eventName: WorktreeOutboxRecord["event_name"],
+        ): WorktreeOutboxRecord => ({
+          schema_version: 1,
+          event_id: eventId,
+          aggregate_type: "worktree",
+          aggregate_id: input.id,
+          run_id: fixture.runId,
+          event_name: eventName,
+          occurred_at: fixture.occurredAt,
+          payload: { assignment_id: input.assignment_id },
+        });
+
+        await expect(
+          persistence.worktrees.activate(
+            input.id,
+            input.operation_token,
+            fixture.occurredAt,
+            event(duplicateEventId, "worktree.created"),
+          ),
+        ).rejects.toMatchObject({
+          code: PERSISTENCE_ERROR_CODES.CONSTRAINT_VIOLATION,
+        });
+        expect(
+          await persistence.worktrees.readByAssignment(
+            fixture.runId,
+            input.ticket_id,
+            input.assignment_id,
+          ),
+        ).toMatchObject({
+          ownership: { assignment_worktree_id: null },
+          record: { status: "provisioning", operation_stage: "activating" },
+        });
+
+        const createdEventId = randomUUID();
+        await persistence.worktrees.activate(
+          input.id,
+          input.operation_token,
+          fixture.occurredAt,
+          event(createdEventId, "worktree.created"),
+        );
+        await persistence.sql`
+          UPDATE assignments SET status = 'released', released_at = ${fixture.occurredAt}
+          WHERE id = ${input.assignment_id}
+        `;
+        const removalReservations = await Promise.all([
+          persistence.worktrees.reserveRemoval(
+            input.id,
+            input.operation_token,
+            randomUUID(),
+            fixture.occurredAt,
+            fixture.occurredAt,
+          ),
+          persistence.worktrees.reserveRemoval(
+            input.id,
+            input.operation_token,
+            randomUUID(),
+            fixture.occurredAt,
+            fixture.occurredAt,
+          ),
+        ]);
+        expect(
+          removalReservations.filter(({ acquired }) => acquired),
+        ).toHaveLength(1);
+        let removing = removalReservations.find(
+          ({ acquired }) => acquired,
+        )!.record;
+        for (const target of [
+          "deleting_branch",
+          "finalizing_removal",
+        ] as const) {
+          removing = await persistence.worktrees.updateOperationStage(
+            input.id,
+            removing.operation_token,
+            removing.operation_stage,
+            target,
+            fixture.occurredAt,
+          );
+        }
+        await expect(
+          persistence.worktrees.markRemoved(
+            input.id,
+            removing.operation_token,
+            fixture.occurredAt,
+            event(createdEventId, "worktree.removed"),
+          ),
+        ).rejects.toMatchObject({
+          code: PERSISTENCE_ERROR_CODES.CONSTRAINT_VIOLATION,
+        });
+        expect(
+          await persistence.worktrees.readByAssignment(
+            fixture.runId,
+            input.ticket_id,
+            input.assignment_id,
+          ),
+        ).toMatchObject({
+          record: {
+            status: "removing",
+            operation_stage: "finalizing_removal",
+          },
+        });
+
+        const removed = await persistence.worktrees.markRemoved(
+          input.id,
+          removing.operation_token,
+          fixture.occurredAt,
+          event(randomUUID(), "worktree.removed"),
+        );
+        expect(removed.status).toBe("removed");
+        const worktreeEvents = await persistence.sql`
+          SELECT event_name FROM lifecycle_outbox
+          WHERE aggregate_type = 'worktree' AND aggregate_id = ${input.id}
+          ORDER BY event_name
+        `;
+        expect(worktreeEvents.map(({ event_name }) => event_name)).toEqual([
+          "worktree.created",
+          "worktree.removed",
+        ]);
+      } finally {
+        await persistence.close();
+      }
+    });
+  });
+
+  it("persists worktree ownership, transitions, historical binding, and exact outbox cardinality", async () => {
+    await withTestDatabase(async (url) => {
+      const persistence = await createPostgresPersistence(url);
+      try {
+        await migrateDatabase(persistence.sql);
+        const repositoryId = randomUUID();
+        const runId = randomUUID();
+        const ticketId = randomUUID();
+        const assignmentId = randomUUID();
+        const worktreeId = randomUUID();
+        const operationToken = randomUUID();
+        const baseCommitSha = "a".repeat(40);
+        const occurredAt = "2026-07-19T20:00:00.000Z";
+        await persistence.sql`
+          INSERT INTO runs (
+            id, schema_version, repository_id, title, base_commit_sha, status,
+            configuration_version, created_at, started_at
+          ) VALUES (
+            ${runId}, 1, ${repositoryId}, 'Run', ${baseCommitSha}, 'running',
+            1, ${occurredAt}, ${occurredAt}
+          )
+        `;
+        await persistence.sql`
+          INSERT INTO tickets (
+            id, schema_version, run_id, external_key, title, description,
+            status, acceptance_criteria, manual_verification_steps
+          ) VALUES (
+            ${ticketId}, 1, ${runId}, 'T1', 'Ticket', 'Description', 'ready',
+            ARRAY['pass'], ARRAY['inspect']
+          )
+        `;
+        await persistence.sql`
+          INSERT INTO assignments (
+            id, schema_version, run_id, ticket_id, agent_id, status, assigned_at
+          ) VALUES (
+            ${assignmentId}, 1, ${runId}, ${ticketId}, ${randomUUID()},
+            'assigned', ${occurredAt}
+          )
+        `;
+        const input: AssignmentWorktreeV1 = {
+          schema_version: 1,
+          id: worktreeId,
+          repository_id: repositoryId,
+          run_id: runId,
+          ticket_id: ticketId,
+          assignment_id: assignmentId,
+          working_tree_root: "/repository",
+          common_git_directory: "/repository/.git",
+          default_branch: "main",
+          base_commit_sha: "",
+          managed_path: `/managed/${assignmentId}`,
+          branch_name: `blackbox/worktree/${runId}/${ticketId}/${assignmentId}`,
+          status: "provisioning",
+          retention_status: "releasable",
+          operation_token: operationToken,
+          operation_stage: "reserved",
+          failure_disposition: "none",
+          created_at: occurredAt,
+          updated_at: occurredAt,
+          activated_at: null,
+          removed_at: null,
+        };
+        const reserved = await persistence.worktrees.reserveProvisioning(input);
+        expect(reserved).toMatchObject({
+          acquired: true,
+          record: { base_commit_sha: baseCommitSha, status: "provisioning" },
+        });
+        let staged = reserved.record;
+        for (const target of [
+          "branch_creating",
+          "worktree_creating",
+          "verifying",
+          "activating",
+        ] as const) {
+          staged = await persistence.worktrees.updateOperationStage(
+            worktreeId,
+            operationToken,
+            staged.operation_stage,
+            target,
+            occurredAt,
+          );
+        }
+        const event = (
+          eventName: WorktreeOutboxRecord["event_name"],
+          payload: WorktreeOutboxRecord["payload"],
+        ): WorktreeOutboxRecord => ({
+          schema_version: 1,
+          event_id: randomUUID(),
+          aggregate_type: "worktree",
+          aggregate_id: worktreeId,
+          run_id: runId,
+          event_name: eventName,
+          occurred_at: occurredAt,
+          payload,
+        });
+        await persistence.worktrees.activate(
+          worktreeId,
+          operationToken,
+          occurredAt,
+          event("worktree.created", { assignment_id: assignmentId }),
+        );
+        await persistence.worktrees.changeRetention(
+          worktreeId,
+          "retained",
+          occurredAt,
+          event("worktree.retention_changed", {
+            from: "releasable",
+            to: "retained",
+          }),
+        );
+        await persistence.worktrees.changeRetention(
+          worktreeId,
+          "releasable",
+          occurredAt,
+          event("worktree.retention_changed", {
+            from: "retained",
+            to: "releasable",
+          }),
+        );
+        await persistence.sql`
+          UPDATE assignments SET status = 'released', released_at = ${occurredAt}
+          WHERE id = ${assignmentId}
+        `;
+        let removing = (
+          await persistence.worktrees.reserveRemoval(
+            worktreeId,
+            operationToken,
+            randomUUID(),
+            occurredAt,
+            occurredAt,
+          )
+        ).record;
+        removing = await persistence.worktrees.updateOperationStage(
+          worktreeId,
+          removing.operation_token,
+          removing.operation_stage,
+          "deleting_branch",
+          occurredAt,
+        );
+        await persistence.worktrees.updateOperationStage(
+          worktreeId,
+          removing.operation_token,
+          removing.operation_stage,
+          "finalizing_removal",
+          occurredAt,
+        );
+        const removed = await persistence.worktrees.markRemoved(
+          worktreeId,
+          removing.operation_token,
+          occurredAt,
+          event("worktree.removed", { assignment_id: assignmentId }),
+        );
+        expect(removed.status).toBe("removed");
+        const assignment = await persistence.sql`
+          SELECT worktree_id FROM assignments WHERE id = ${assignmentId}
+        `;
+        expect(assignment[0]?.worktree_id).toBe(worktreeId);
+        const events = await persistence.sql`
+          SELECT event_name FROM lifecycle_outbox
+          WHERE aggregate_type = 'worktree' AND aggregate_id = ${worktreeId}
+          ORDER BY occurred_at, event_name, event_id
+        `;
+        expect(events.map(({ event_name }) => event_name).sort()).toEqual([
+          "worktree.created",
+          "worktree.removed",
+          "worktree.retention_changed",
+          "worktree.retention_changed",
+        ]);
+        await expect(
+          persistence.sql`
+            UPDATE assignment_worktrees SET status = 'active'
+            WHERE id = ${worktreeId}
+          `,
+        ).rejects.toMatchObject({ code: "23514" });
       } finally {
         await persistence.close();
       }

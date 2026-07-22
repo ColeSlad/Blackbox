@@ -222,10 +222,52 @@ For repository or worktree changes:
 - Test with an intentionally dirty repository.
 - Test paths containing spaces.
 - Test concurrent worktree creation.
+- Test independent manager instances against the same database assignment and
+  prove one token owner performs Git mutations while losers converge; also
+  prove different assignments reserve independently.
 - Verify every worktree starts from the recorded base commit.
 - Verify one assignment cannot mutate another assignment's worktree through supported APIs.
 - Verify patch generation is stable and complete.
 - Verify cleanup refuses active or retained worktrees.
+- Verify the cleanup matrix directly covers assigned, active, retained, tracked
+  dirty, untracked, ignored, escaped, absent/unregistered, path/branch
+  mismatched, moved-registration, ownership-mismatched, clean terminal,
+  failed-provisioning-compensation, and failed-removal-reconciliation states.
+  Every refusal must preserve Git resources and emit no removal event; a refusal
+  caught before reservation must also preserve the worktree database record.
+- Inject unknown content after removal reservation and prove the immediate
+  pre-remove check leaves the worktree and branch intact with an explicit
+  removal-reconciliation disposition.
+- Inject failures after reservation, branch creation, worktree creation,
+  verification, binding, removal, branch deletion, and final persistence; each
+  retry must either prove exact ownership or retain an explicit failure
+  disposition without deleting a collision.
+- Prove a fresh reservation never adopts an exact pre-existing branch or
+  worktree; `branch_creating` proves neither resource, `worktree_creating`
+  proves only the branch, and `verifying`/`activating` prove both. Failed Git
+  adds and merely observed exact resources confer no ownership. Prove stale
+  recovery preserves cleanup-required disposition across token rotation,
+  terminal owners cannot retry, and moved refs survive cleanup recovery.
+- Verify repository bindings reject missing UUIDs, duplicate canonical
+  identities, substituted paths, common-directory drift, default-branch drift,
+  and absent run bases.
+- Verify provision, retention transitions, and removal append exactly one
+  versioned outbox event each, while guarded start appends exactly one ticket and
+  one assignment status event in the same transaction.
+- Change lifecycle ownership or the recorded run base after reservation and
+  prove final activation re-locks and rejects it without assignment binding or
+  outbox emission.
+- Race concurrent same-assignment provision calls with different repository IDs
+  and prove the substituted request is never coalesced. Change the ownership
+  base after activation and prove active idempotency refuses the drift.
+- Substitute a different clean repository at the managed path after manager
+  verification but before native removal; the primitive must re-read expected
+  path, common Git directory, branch, and HEAD and preserve both resources.
+- Verify malformed, uppercase, and case-duplicate UUIDs are refused before
+  configuration lookup, manager maps, path/ref derivation, persistence, or
+  event creation. Include repository and agent body UUIDs plus injected
+  aggregate/event ID generators. Successful HTTP responses omit operation
+  tokens and canonical path/ref metadata.
 - Confirm the canonical protected branch is unchanged during prepare and validation.
 
 The repository-registration and native-Git boundary has these focused commands:
@@ -234,6 +276,9 @@ The repository-registration and native-Git boundary has these focused commands:
 pnpm --filter @blackbox/git test
 pnpm --filter @blackbox/git typecheck
 pnpm --filter @blackbox/git build
+pnpm --filter @blackbox/worktrees test
+pnpm --filter @blackbox/worktrees typecheck
+pnpm --filter @blackbox/worktrees build
 ```
 
 The focused suite creates real disposable SHA-1 and SHA-256 repositories. It
